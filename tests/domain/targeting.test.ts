@@ -3,6 +3,7 @@ import { campaignTargetingReason, normalizedCountry } from '../../src/lib/domain
 describe('automatic campaign targeting', () => {
   const campaign = {country:'UK',employeesMin:5,employeesMax:50};
   it.each(['UK','GB','United Kingdom','Royaume-Uni'])('normalizes %s',country=>expect(normalizedCountry(country)).toBe('UK'));
+  it.each(['IE','Ireland','Irlande'])('normalizes %s to IE',country=>expect(normalizedCountry(country)).toBe('IE'));
   it('accepts known in-range companies',()=>expect(campaignTargetingReason({country:'Royaume-Uni',employeeEstimate:20},campaign)).toBeNull());
   it('rejects another country',()=>expect(campaignTargetingReason({country:'France',employeeEstimate:20},campaign)).toContain('pays'));
   it.each([null,undefined])('requires a known company size (%s)',employeeEstimate=>expect(campaignTargetingReason({country:'UK',employeeEstimate},campaign)).not.toBeNull());

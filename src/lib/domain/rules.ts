@@ -67,6 +67,8 @@ export function normalizedCountry(value?: string | null): string | null {
     ca:'CA', canada:'CA', fr:'FR', france:'FR', be:'BE', belgium:'BE', belgique:'BE',
     nl:'NL', netherlands:'NL', 'pays-bas':'NL', de:'DE', germany:'DE', allemagne:'DE',
     lu:'LU', luxembourg:'LU', ch:'CH', switzerland:'CH', suisse:'CH',
+    ie:'IE', ireland:'IE', irlande:'IE', eire:'IE',
+    es:'ES', spain:'ES', espagne:'ES', it:'IT', italy:'IT', italie:'IT',
   };
   return countries[name] ?? null;
 }
