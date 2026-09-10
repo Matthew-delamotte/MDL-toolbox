@@ -56,6 +56,15 @@ describe("discovery keeps companies and drops publishers", () => {
     expect(looksLikeDirectory("https://3suisses.fr/", "3 Suisses")).toBe(false);
     expect(looksLikeDirectory("https://corlet.fr/", "Prestataire logistique e-commerce : entrepôt, stockage")).toBe(false);
   });
+  it("drops job boards before they become prospects", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "test-secret");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(tavilyResponse([
+      { title: "Offres d'emploi Préparateur de commande", url: "https://candidat.francetravail.fr/offres/recherche", content: "Annonces" },
+      { title: "Entreprise de logistique et stockage", url: "https://h2k.fr/", content: "Prestataire logistique" },
+    ])));
+    const rows = await new TavilyLeadSourceAdapter().discover("PME logistique e-commerce France");
+    expect(rows.map(r => r.company.domain)).toEqual(["h2k.fr"]);
+  });
   it("keeps only real companies and cleans markup out of their name", async () => {
     vi.stubEnv("TAVILY_API_KEY", "test-secret");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(tavilyResponse([
