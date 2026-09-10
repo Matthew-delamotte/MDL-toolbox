@@ -10,8 +10,8 @@ Dernière mise à jour : 10 septembre 2026.
 | Code source | GitHub — `Matthew-delamotte/MDL-toolbox` (branche `main`) | Connecté à Vercel : chaque `push` déclenche un déploiement |
 | Base de données | Supabase PostgreSQL (`eu-west-1`) | 3 migrations appliquées, RLS active, compte administrateur créé |
 | Envoi d'emails | Resend, domaine `mdl-advisory.com` | Clé API configurée ; SPF, DKIM et DMARC en place |
-| Ordonnanceur | Inngest | **Non raccordé** — clés absentes |
-| Réception des réponses | Boîte aux lettres sur `mdl-advisory.com` | **Absente** — aucun enregistrement MX sur le domaine racine |
+| Ordonnanceur | Inngest (Marketplace Vercel) | **En attente** — acceptation des conditions par Matthew |
+| Réception des réponses | Hostinger Mail | MX, SPF et DKIM posés ; boîte à confirmer côté Hostinger |
 
 ## Connexion à l'outil
 
@@ -79,7 +79,16 @@ Hunter. Non configurés : Inngest, webhook Resend.
 ## Ce qu'il reste avant les recherches automatiques
 
 1. Raccorder Inngest et synchroniser l'application sur `/api/inngest`.
-2. Créer une boîte aux lettres sur `mdl-advisory.com` et poser ses enregistrements MX.
+2. Confirmer que la boîte `matthew.delamotte@mdl-advisory.com` existe bien dans Hostinger.
 3. Créer le webhook Resend vers `/api/webhooks/resend` et renseigner `RESEND_WEBHOOK_SECRET`.
-4. Créer une campagne réelle : cible, pays, effectif, limite quotidienne.
+4. Activer une ou deux campagnes parmi les sept brouillons créés (France, Belgique, Suisse, Luxembourg, Royaume-Uni, Irlande, États-Unis).
 5. Passer `DRY_RUN` à `false`, puis activer le pilote automatique par paliers.
+
+## Plafond de débit
+
+Le moteur est limité par le quota Hunter de l’offre gratuite : 20 recherches de domaine et
+40 vérifications d’email par mois. Cela plafonne la prospection à une vingtaine de nouvelles
+entreprises enrichies par mois, quelles que soient les campagnes activées. Tavily (800 recherches
+par mois) et OpenAI (150 requêtes par jour) ne sont pas limitants. Pour dépasser ce plafond,
+il faut passer Hunter sur une offre payante et relever `HUNTER_SEARCH_MONTHLY_LIMIT` et
+`HUNTER_VERIFY_MONTHLY_LIMIT`.
