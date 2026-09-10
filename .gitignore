@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.local/
+coverage/
+*.tsbuildinfo
+*.log
+playwright-report/
+test-results/
+
+# Secrets — never commit
+.env*
+!.env.example
+API key.txt
+*.key.txt
+
+# Vercel
+.vercel

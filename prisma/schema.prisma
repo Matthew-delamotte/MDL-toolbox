@@ -1,0 +1,284 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  name String
+  passwordHash String
+  createdAt DateTime @default(now())
+}
+model Company {
+  id String @id @default(cuid())
+  name String
+  domain String @unique
+  website String
+  country String @default("Unknown")
+  industry String @default("Unknown")
+  employeeEstimate Int?
+  description String @default("")
+  technologies String[] @default([])
+  source String
+  status String @default("DISCOVERED")
+  research Json @default("[]")
+  isDemo Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contacts Contact[]
+  opportunities Opportunity[]
+  leads Lead[]
+  @@index([country, industry])
+}
+model Contact {
+  id String @id @default(cuid())
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  firstName String @default("")
+  lastName String @default("")
+  fullName String
+  jobTitle String @default("")
+  email String? @unique
+  emailStatus String @default("UNKNOWN")
+  linkedinUrl String?
+  language String @default("en")
+  source String
+  createdAt DateTime @default(now())
+  leads Lead[]
+  opportunities Opportunity[]
+  @@unique([companyId,fullName])
+}
+model Opportunity {
+  id String @id @default(cuid())
+  externalId String? @unique
+  companyId String?
+  company Company? @relation(fields:[companyId],references:[id],onDelete:SetNull)
+  contactId String?
+  contact Contact? @relation(fields:[contactId],references:[id],onDelete:SetNull)
+  source String
+  sourceUrl String
+  title String
+  description String
+  budgetMin Float?
+  budgetMax Float?
+  currency String @default("EUR")
+  location String @default("")
+  postedAt DateTime?
+  status String @default("NEW")
+  rawPayload Json @default("{}")
+  createdAt DateTime @default(now())
+  leads Lead[]
+  @@index([status,createdAt])
+}
+model Lead {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  companyId String
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  contactId String?
+  contact Contact? @relation(fields:[contactId],references:[id],onDelete:SetNull)
+  opportunityId String?
+  opportunity Opportunity? @relation(fields:[opportunityId],references:[id],onDelete:SetNull)
+  campaignId String?
+  campaign Campaign? @relation(fields:[campaignId],references:[id],onDelete:SetNull)
+  source String
+  status String @default("DISCOVERED")
+  fitScore Int @default(0)
+  valueScore Int @default(0)
+  deliverabilityScore Int @default(0)
+  clientQualityScore Int @default(0)
+  recurringPotentialScore Int @default(0)
+  totalScore Int @default(0)
+  detectedProblems String[] @default([])
+  reasoning String @default("")
+  recommendedOfferId String?
+  recommendedOffer OfferTemplate? @relation(fields:[recommendedOfferId],references:[id],onDelete:SetNull)
+  estimatedPriceMin Float?
+  estimatedPriceMax Float?
+  confidence Float @default(0)
+  sequenceStopped Boolean @default(false)
+  nextFollowupAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  offers GeneratedOffer[]
+  messages Message[]
+  conversation Conversation?
+  reviews ReviewItem[]
+  deal PipelineDeal?
+  @@index([status,totalScore])
+  @@index([nextFollowupAt,sequenceStopped])
+}
+model OfferTemplate {
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  description String
+  minPrice Float
+  maxPrice Float
+  typicalDeliveryDays String
+  enabled Boolean @default(true)
+  leads Lead[]
+  offers GeneratedOffer[]
+}
+model GeneratedOffer {
+  id String @id @default(cuid())
+  leadId String
+  lead Lead @relation(fields:[leadId],references:[id],onDelete:Cascade)
+  offerTemplateId String
+  offerTemplate OfferTemplate @relation(fields:[offerTemplateId],references:[id])
+  title String
+  problem String
+  proposedSolution String
+  deliverables String[]
+  estimatedPriceMin Float
+  estimatedPriceMax Float
+  estimatedDuration String
+  rationale String
+  createdAt DateTime @default(now())
+  @@index([leadId,createdAt])
+}
+model Campaign {
+  id String @id @default(cuid())
+  name String
+  status String @default("DRAFT")
+  dailyLimit Int @default(10)
+  minLeadScore Int @default(75)
+  autopilotEnabled Boolean @default(false)
+  target String @default("automation agencies")
+  country String @default("US")
+  employeesMin Int @default(5)
+  employeesMax Int @default(200)
+  createdAt DateTime @default(now())
+  sequences Sequence[]
+  messages Message[]
+  leads Lead[]
+}
+model Sequence {
+  id String @id @default(cuid())
+  campaignId String
+  campaign Campaign @relation(fields:[campaignId],references:[id],onDelete:Cascade)
+  stepNumber Int
+  delayHours Int
+  instruction String
+  enabled Boolean @default(true)
+  @@unique([campaignId,stepNumber])
+}
+model Message {
+  id String @id @default(cuid())
+  leadId String
+  lead Lead @relation(fields:[leadId],references:[id],onDelete:Cascade)
+  campaignId String?
+  campaign Campaign? @relation(fields:[campaignId],references:[id],onDelete:SetNull)
+  direction String
+  type String
+  subject String
+  body String
+  status String @default("DRAFT")
+  providerMessageId String? @unique
+  idempotencyKey String @unique
+  recipientEmail String?
+  sequenceStep Int @default(0)
+  sentAt DateTime?
+  receivedAt DateTime?
+  deliveredAt DateTime?
+  aiClassification String?
+  aiConfidence Float?
+  error String?
+  dryRun Boolean @default(true)
+  createdAt DateTime @default(now())
+  reviews ReviewItem[]
+  @@index([status,createdAt])
+  @@index([recipientEmail,type,status])
+}
+model Conversation {
+  id String @id @default(cuid())
+  leadId String @unique
+  lead Lead @relation(fields:[leadId],references:[id],onDelete:Cascade)
+  status String @default("OPEN")
+  sentiment String @default("NEUTRAL")
+  intent String @default("UNKNOWN")
+  requiresHuman Boolean @default(false)
+  lastMessageAt DateTime @default(now())
+}
+model ReviewItem {
+  id String @id @default(cuid())
+  leadId String?
+  lead Lead? @relation(fields:[leadId],references:[id],onDelete:Cascade)
+  messageId String?
+  message Message? @relation(fields:[messageId],references:[id],onDelete:SetNull)
+  type String
+  title String
+  description String
+  proposedAction String
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  resolvedAt DateTime?
+  @@index([status,createdAt])
+}
+model PipelineDeal {
+  id String @id @default(cuid())
+  leadId String @unique
+  lead Lead @relation(fields:[leadId],references:[id],onDelete:Cascade)
+  stage String @default("DISCOVERED")
+  estimatedValue Float @default(0)
+  probability Int @default(10)
+  nextAction String @default("Qualify lead")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([stage])
+}
+model SourceConfig {
+  id String @id @default(cuid())
+  name String @unique
+  enabled Boolean @default(true)
+  config Json @default("{}")
+  lastRunAt DateTime?
+}
+model SystemSetting {
+  key String @id
+  value Json
+  updatedAt DateTime @updatedAt
+}
+model ActivityLog {
+  id String @id @default(cuid())
+  action String
+  entityType String?
+  entityId String?
+  level String @default("INFO")
+  message String
+  metadata Json @default("{}")
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+  @@index([entityId])
+}
+model Suppression {
+  id String @id @default(cuid())
+  email String @unique
+  reason String
+  createdAt DateTime @default(now())
+}
+model WebhookEvent {
+  id String @id
+  type String
+  status String @default("RECEIVED")
+  payload Json
+  processedAt DateTime?
+  createdAt DateTime @default(now())
+}
+model DailyMetric {
+  date String @id
+  metrics Json
+  createdAt DateTime @default(now())
+}
+model ProviderUsage {
+  id String @id @default(cuid())
+  provider String
+  period String
+  count Int @default(0)
+  updatedAt DateTime @updatedAt
+  @@unique([provider, period])
+  @@index([provider])
+}
