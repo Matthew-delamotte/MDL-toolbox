@@ -18,9 +18,9 @@ export async function tavilySearch(query: string, domains?: string[]) {
 // agencies themselves. Publishers, directories and listicles are dropped before they consume
 // a contact-discovery credit or reach the workspace as a prospect.
 const AGGREGATOR_DOMAIN = /(^|\.)(linkedin\.com|facebook\.com|instagram\.com|twitter\.com|x\.com|tiktok\.com|pinterest\.[a-z.]+|clutch\.co|upwork\.com|fiverr\.com|wikipedia\.org|youtube\.com|reddit\.com|quora\.com|medium\.com|substack\.com|blogspot\.com|wordpress\.com|g2\.com|capterra\.com|trustpilot\.com|yelp\.[a-z.]+|glassdoor\.[a-z.]+|indeed\.[a-z.]+|crunchbase\.com|producthunt\.com|designrush\.com|goodfirms\.co|sortlist\.[a-z.]+|semrush\.com|ahrefs\.com|hubspot\.com|shopify\.com|wix\.com|squarespace\.com)$/i;
-const ARTICLE_PATH = /\/(blogs?|articles?|news|guides?|resources?|insights?|magazine|posts?|press)(\/|$)|\/20\d\d\//i;
+const ARTICLE_PATH = /\/(blogs?|articles?|news|guides?|resources?|insights?|magazine|posts?|press|actualites?|actus?|conseils?|dossiers?|astuces|publications?|livres?-blancs?|a-la-une)(\/|$)|\/20\d\d\/|-(guide|dossier|livre-blanc|checklist|comparatif)-20\d\d(\/|$|\.)/i;
 // Editorial titles ask a question or rank things; company home pages state who they are.
-const LISTICLE_TITLE = /^\s*(the\s+)?(top|best)\b|^\s*(where|how|what|why|which|when)\b|\b(top|best)\s*\d+|\b\d{1,3}\s*\+?\s+(best|top|leading|great)\b|\b(listicle|roundup|ranking|directory|comparison|alternatives|ultimate guide)\b/i;
+const LISTICLE_TITLE = /^\s*(the\s+)?(top|best)\b|^\s*(where|how|what|why|which|when)\b|^\s*(comment|pourquoi|quels?|quelles?|quand|combien)\b|\b(top|best)\s*\d+|\b\d{1,3}\s*\+?\s+(best|top|leading|great)\b|\b(les|nos)\s+\d{1,3}\s+(meilleurs?|meilleures?)\b|\b\d{1,3}\s+(meilleurs?|meilleures?|astuces?|conseils?|raisons?|[eé]tapes?|outils?)\b|\b(listicle|roundup|ranking|directory|comparison|alternatives|ultimate guide)\b|\b(guide (complet|ultime|pratique)|tout savoir|livre blanc|comparatif|classement|palmar[eè]s|d[eé]finition|checklist)\b/i;
 export function looksLikeDirectory(url: string, title: string) {
   let path = "";
   try { path = new URL(url).pathname; } catch { path = url; }

@@ -31,6 +31,19 @@ describe("discovery keeps companies and drops publishers", () => {
     expect(looksLikeDirectory("https://madebyextreme.com/", "Made By Extreme")).toBe(false);
     expect(looksLikeDirectory("https://harbourgoods.co.uk/pages/about", "Harbour Goods - Skincare")).toBe(false);
   });
+  // The workspace prospects French-speaking markets: editorial pages there are French, not English.
+  it("recognises French editorial pages", () => {
+    expect(looksLikeDirectory("https://adme-aistudio.com/automatisation-ia-pme-guide-2026", "Automatisation IA pour PME en 2026 : le guide complet")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/p", "Comment automatiser vos devis en 2026")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/p", "Pourquoi votre reporting vous coûte cher")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/p", "Les 10 meilleurs logiciels de gestion")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/p", "5 conseils pour fiabiliser votre reporting")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/p", "Tout savoir sur la facturation électronique")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/actualites/rentree", "Nouveautés du secteur")).toBe(true);
+    expect(looksLikeDirectory("https://www.endurancelogistique.fr/logisticien-e-commerce-tpe-pme.htm", "Un logisticien e-commerce au service des TPE et PME")).toBe(false);
+    expect(looksLikeDirectory("https://atelier-colis.fr/", "Atelier Colis — logistique e-commerce pour marques")).toBe(false);
+    expect(looksLikeDirectory("https://guide-tourisme-alsace.fr/", "Guide Tourisme Alsace")).toBe(false);
+  });
   it("keeps only real companies and cleans markup out of their name", async () => {
     vi.stubEnv("TAVILY_API_KEY", "test-secret");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(tavilyResponse([
