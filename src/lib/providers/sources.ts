@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
-import { countryFromDomain, normalizeDomain, normalizeEmail, sanitizeExternalText, UNKNOWN } from "../domain/rules";
+import { companyNameFrom, countryFromDomain, normalizeDomain, normalizeEmail, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { consumeBudget, isBudgetError } from "./budget";
 import type { ContactInput, LeadSourceAdapter, RawOpportunity } from "./types";
 
@@ -44,7 +44,7 @@ export class TavilyLeadSourceAdapter implements LeadSourceAdapter {
       seen.add(domain);
       const title = sanitizeExternalText(stripMarkup(result.title));
       const content = sanitizeExternalText(stripMarkup(result.content));
-      return [{ externalId: `tavily:${domain}`, company: { name: title.split(/ [|–—-] /)[0].slice(0, 120) || domain, domain, website: `https://${domain}`, description: content, country: countryFromDomain(domain), industry: UNKNOWN, isDemo: false }, title: title || domain, description: content, source: "TAVILY", sourceUrl: result.url, rawPayload: { query, retrievedAt: new Date().toISOString(), snippet: content } }];
+      return [{ externalId: `tavily:${domain}`, company: { name: companyNameFrom(title, domain), domain, website: `https://${domain}`, description: content, country: countryFromDomain(domain), industry: UNKNOWN, isDemo: false }, title: title || domain, description: content, source: "TAVILY", sourceUrl: result.url, rawPayload: { query, retrievedAt: new Date().toISOString(), snippet: content } }];
     });
     if (!companies.length && results.length) throw new Error(`${results.length} résultat(s) trouvé(s), mais tous sont des articles, classements ou annuaires plutôt que des entreprises. Décrivez les entreprises elles-mêmes, par exemple « marque de skincare indépendante Londres Shopify » plutôt que « meilleures agences Shopify ».`);
     return companies;

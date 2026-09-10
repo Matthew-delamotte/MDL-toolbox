@@ -75,6 +75,26 @@ export function normalizedCountry(value?: string | null): string | null {
 
 const COUNTRY_LABEL: Record<string, string> = { US: "United States", UK: "United Kingdom", CA: "Canada", IE: "Ireland", FR: "France", BE: "Belgique", NL: "Pays-Bas", DE: "Allemagne", LU: "Luxembourg", CH: "Suisse", ES: "Espagne", IT: "Italie" };
 /** A search engine answers "PME logistique France" far better than "PME logistique FR". */
+// A search result title describes a page, not a business: "Entreprise de logistique et
+// stockage de marchandises, préparation de commandes…" is a headline, and it ends up in the
+// subject line of every email. When the title reads as a sentence, the domain is the better name.
+const DESCRIPTIVE_TITLE = /^(entreprise|societe|prestataire|specialiste|fournisseur|expert|agence|cabinet|groupe|service|solution|logistique|transport|accueil|bienvenue|home|welcome|about|a propos|contact|nos|notre|le|la|les|un|une|votre|vos|your|our|the)\b/i;
+export function domainLabel(domain: string): string {
+  const parts = domain.split(".");
+  const suffix = parts.slice(-2).join(".");
+  const index = /^(co|com|org|net|gov|ac)\.[a-z]{2}$/i.test(suffix) ? parts.length - 3 : parts.length - 2;
+  const label = parts[Math.max(0, index)] || parts[0] || domain;
+  const words = label.split("-").filter(Boolean);
+  if (!words.length) return domain;
+  return words.map(word => word.length <= 4 && !/[aeiouy]/i.test(word.replace(/\d/g, "")) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+}
+export function companyNameFrom(title: string, domain: string): string {
+  const head = (title || "").split(/ [|–—•·:] | - /)[0].trim().replace(/\s+/g, " ");
+  const words = head ? head.split(" ") : [];
+  const descriptive = !head || head.length > 48 || words.length > 5 || head.includes(",") || DESCRIPTIVE_TITLE.test(foldAccents(head));
+  return descriptive ? domainLabel(domain) : head.slice(0, 120);
+}
+
 export function countryLabel(value?: string | null): string {
   const code = normalizedCountry(value);
   return code ? COUNTRY_LABEL[code] : (value || "").trim();
