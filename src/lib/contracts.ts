@@ -63,7 +63,7 @@ export type WorkspaceAction =
   | { action: "review"; id: string; decision: "approve" | "reject" | "handoff" | "blacklist" | "edit"; body?: string }
   | { action: "blacklist"; leadId: string; reason?: string }
   | { action: "create-campaign"; name: string; target: string; country: string; dailyLimit: number; minLeadScore: number; autopilotEnabled: boolean; employeesMin: number; employeesMax: number }
-  | { action: "update-campaign"; id: string; status?: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED"; autopilotEnabled?: boolean; dailyLimit?: number }
+  | { action: "update-campaign"; id: string; status?: "DRAFT" | "ACTIVE" | "PAUSED" | "COMPLETED"; autopilotEnabled?: boolean; dailyLimit?: number; name?: string; target?: string; country?: string; minLeadScore?: number; employeesMin?: number; employeesMax?: number }
   | { action: "move-deal"; id: string; stage: string; estimatedValue?: number; nextAction?: string }
   | { action: "save-settings"; settings: Partial<Omit<Settings, "dryRun">> }
   | { action: "update-message"; id: string; subject: string; body: string }

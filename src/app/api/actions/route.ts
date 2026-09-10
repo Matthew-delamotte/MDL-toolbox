@@ -21,7 +21,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("review"), id, decision: z.enum(["approve", "reject", "handoff", "blacklist", "edit"]), body: z.string().min(1).max(12000).optional() }),
   z.object({ action: z.literal("blacklist"), leadId: id, reason: z.string().max(300).optional() }),
   z.object({ action: z.literal("create-campaign"), ...campaignFields }),
-  z.object({ action: z.literal("update-campaign"), id, status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "COMPLETED"]).optional(), autopilotEnabled: z.boolean().optional(), dailyLimit: campaignFields.dailyLimit.optional() }),
+  z.object({ action: z.literal("update-campaign"), id, status: z.enum(["DRAFT", "ACTIVE", "PAUSED", "COMPLETED"]).optional(), autopilotEnabled: z.boolean().optional(), dailyLimit: campaignFields.dailyLimit.optional(), name: campaignFields.name.optional(), target: campaignFields.target.optional(), country: campaignFields.country.optional(), minLeadScore: campaignFields.minLeadScore.optional(), employeesMin: campaignFields.employeesMin.optional(), employeesMax: campaignFields.employeesMax.optional() }),
   z.object({ action: z.literal("move-deal"), id, stage: stages, estimatedValue: z.number().min(0).max(10000000).optional(), nextAction: z.string().max(1000).optional() }),
   z.object({ action: z.literal("save-settings"), settings: settingsSchema.partial() }),
   z.object({ action: z.literal("update-message"), id, subject: z.string().min(1).max(200), body: z.string().min(1).max(12000) }),
@@ -73,6 +73,10 @@ export async function POST(request: Request) {
       case "update-campaign": {
         const { action: _action, id: campaignId, ...data } = input;
         void _action;
+        // Employee bounds can be edited one at a time: validate the merged record, not the patch.
+        const current = await db.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+        const merged = { ...current, ...data };
+        if (merged.employeesMin > merged.employeesMax) throw new Error("L’effectif minimum ne peut pas dépasser le maximum.");
         result = await db.campaign.update({ where: { id: campaignId }, data }); break;
       }
       case "move-deal": {

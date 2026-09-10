@@ -4,6 +4,7 @@ import { getSettings } from '@/lib/settings';
 import { parseEmailAlert } from '@/lib/providers';
 import { discover, ingestOpportunities, enrichCompany, findLeadContact, researchLead, scoreLead, generateOffer, generateOutreach, sendMessage, processReply, runFollowups, sendDeferred, dailyMetrics, cleanupBounces } from '@/lib/services/engine';
 import { audit } from '@/lib/services/shared';
+import { countryLabel } from '@/lib/domain';
 import { inngest } from './client';
 
 const leadInput = z.object({leadId:z.string().min(1),campaignId:z.string().optional()});
@@ -26,7 +27,7 @@ const discoverCompanies = inngest.createFunction({id:'discover-companies',retrie
     const settings = await getSettings();
     if (!settings.autopilotEnabled) return [];
     const campaigns = await db.campaign.findMany({where:{status:'ACTIVE',autopilotEnabled:true}});
-    return campaigns.map(c=>({query:`${c.target} ${c.country}`,campaignId:c.id}));
+    return campaigns.map(c=>({query:`${c.target} ${countryLabel(c.country)}`.trim(),campaignId:c.id}));
   });
   for (let i=0;i<requests.length;i++) {
     const leads = await step.run(`discover-${i}`,()=>discover(requests[i]));

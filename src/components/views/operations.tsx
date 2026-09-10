@@ -384,7 +384,7 @@ export function Campaigns() {
               <label>
                 Pays
                 <select name="country">
-                  {["US", "UK", "CA", "FR", "BE", "NL", "DE", "LU", "CH"].map(
+                  {["FR", "BE", "CH", "LU", "UK", "IE", "US", "CA", "NL", "DE", "ES", "IT"].map(
                     (c) => (
                       <option key={c}>{c}</option>
                     ),
@@ -462,6 +462,12 @@ export function Campaigns() {
                   {
                     action: "update-campaign",
                     id: editing.id,
+                    name: String(f.get("name")),
+                    target: String(f.get("target")),
+                    country: String(f.get("country")),
+                    minLeadScore: Number(f.get("minLeadScore")),
+                    employeesMin: Number(f.get("employeesMin")),
+                    employeesMax: Number(f.get("employeesMax")),
                     dailyLimit: Number(f.get("dailyLimit")),
                     autopilotEnabled: f.get("autopilot") === "on",
                   },
@@ -472,16 +478,90 @@ export function Campaigns() {
             }}
           >
             <label>
-              Nouveaux contacts par jour
+              Nom de la campagne
+              <Input name="name" defaultValue={editing.name} required />
+            </label>
+            <label>
+              Entreprises ciblées
               <Input
-                name="dailyLimit"
-                type="number"
-                min={1}
-                max={1000}
-                defaultValue={editing.dailyLimit}
+                name="target"
+                defaultValue={editing.target}
+                placeholder="marque de skincare indépendante boutique en ligne"
                 required
               />
+              <span className="muted">
+                Décrivez les entreprises elles-mêmes, pas leur problème : une
+                requête formulée comme un sujet d’article ramène des articles.
+              </span>
             </label>
+            <div className="form-grid">
+              <label>
+                Pays
+                <select name="country" defaultValue={editing.country}>
+                  {[
+                    "FR",
+                    "BE",
+                    "CH",
+                    "LU",
+                    "UK",
+                    "IE",
+                    "US",
+                    "CA",
+                    "NL",
+                    "DE",
+                    "ES",
+                    "IT",
+                    editing.country,
+                  ]
+                    .filter((c, i, all) => all.indexOf(c) === i)
+                    .map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                Score minimum
+                <Input
+                  name="minLeadScore"
+                  type="number"
+                  min={0}
+                  max={100}
+                  defaultValue={editing.minLeadScore}
+                  required
+                />
+              </label>
+              <label>
+                Effectif minimum
+                <Input
+                  name="employeesMin"
+                  type="number"
+                  min={1}
+                  defaultValue={editing.employeesMin}
+                  required
+                />
+              </label>
+              <label>
+                Effectif maximum
+                <Input
+                  name="employeesMax"
+                  type="number"
+                  min={1}
+                  defaultValue={editing.employeesMax}
+                  required
+                />
+              </label>
+              <label>
+                Nouveaux contacts par jour
+                <Input
+                  name="dailyLimit"
+                  type="number"
+                  min={1}
+                  max={1000}
+                  defaultValue={editing.dailyLimit}
+                  required
+                />
+              </label>
+            </div>
             <label className="checkbox-label">
               <input
                 name="autopilot"

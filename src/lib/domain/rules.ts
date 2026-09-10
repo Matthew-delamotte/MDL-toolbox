@@ -73,6 +73,13 @@ export function normalizedCountry(value?: string | null): string | null {
   return countries[name] ?? null;
 }
 
+const COUNTRY_LABEL: Record<string, string> = { US: "United States", UK: "United Kingdom", CA: "Canada", IE: "Ireland", FR: "France", BE: "Belgique", NL: "Pays-Bas", DE: "Allemagne", LU: "Luxembourg", CH: "Suisse", ES: "Espagne", IT: "Italie" };
+/** A search engine answers "PME logistique France" far better than "PME logistique FR". */
+export function countryLabel(value?: string | null): string {
+  const code = normalizedCountry(value);
+  return code ? COUNTRY_LABEL[code] : (value || "").trim();
+}
+
 export function campaignTargetingReason(company: {country?: string | null; employeeEstimate?: number | null}, campaign?: {country: string; employeesMin: number; employeesMax: number} | null): string | null {
   const country = normalizedCountry(company.country);
   if (!country) return 'Pays du prospect non confirmé ou hors des marchés ciblés : validation humaine requise.';
