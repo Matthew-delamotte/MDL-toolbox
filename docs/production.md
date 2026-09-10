@@ -10,7 +10,7 @@ Dernière mise à jour : 10 septembre 2026.
 | Code source | GitHub — `Matthew-delamotte/MDL-toolbox` (branche `main`) | Connecté à Vercel : chaque `push` déclenche un déploiement |
 | Base de données | Supabase PostgreSQL (`eu-west-1`) | 3 migrations appliquées, RLS active, compte administrateur créé |
 | Envoi d'emails | Resend, domaine `mdl-advisory.com` | Clé API configurée ; SPF, DKIM et DMARC en place |
-| Ordonnanceur | Inngest (Marketplace Vercel) | **En attente** — acceptation des conditions par Matthew |
+| Ordonnanceur | Inngest (Marketplace Vercel) | Raccordé — 13 fonctions synchronisées |
 | Réception des réponses | Hostinger Mail | MX, SPF et DKIM posés ; boîte à confirmer côté Hostinger |
 
 ## Connexion à l'outil
@@ -39,7 +39,8 @@ Configurées : `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, 
 `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO`, `RESEND_ALERT_EMAIL`, `ALERT_ALLOWED_SENDERS`,
 `DRY_RUN=true`, `SEED_DEMO=false`, `LOCAL_DATABASE=false`.
 
-Manquantes : `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `RESEND_WEBHOOK_SECRET`.
+Toutes configurées. `INNGEST_EVENT_KEY` et `INNGEST_SIGNING_KEY` sont posées par l’intégration
+Marketplace ; `RESEND_WEBHOOK_SECRET` a été ajoutée manuellement.
 
 ## Base de données
 
@@ -76,11 +77,54 @@ connexion administrateur, `DRY_RUN` actif, onze pages rendues, rejet des mutatio
 des actions inconnues. Aucun échec. Fournisseurs détectés comme configurés : OpenAI, Resend, Tavily,
 Hunter. Non configurés : Inngest, webhook Resend.
 
+## Ordonnanceur
+
+L'intégration Inngest de la Marketplace Vercel fournit les clés et l'application est synchronisée
+sur `/api/inngest`. Les tâches planifiées tournent :
+
+| Fonction | Rythme |
+| --- | --- |
+| `discover-companies` | 07:00 UTC, du lundi au vendredi |
+| `send-followups` | toutes les heures |
+| `cleanup-bounces` | toutes les 30 minutes |
+| `daily-metrics` | 23:50 UTC |
+
+La découverte planifiée ne fait rien tant que le pilote automatique global est désactivé.
+
+## Le pilote automatique est un seul interrupteur
+
+La découverte planifiée exige `autopilotEnabled` au niveau du réglage global **et** de la campagne.
+Le même couple autorise l'envoi automatique : il n'existe pas de réglage « chercher sans envoyer ».
+
+En mode simulation (`DRY_RUN=true`), un message traité par le pilote automatique est marqué
+`SIMULATED` et le prospect passe en `CONTACTED` sans qu'aucun email ne parte. Activer le pilote
+automatique en simulation consomme donc des prospects réels pour rien. La séquence correcte est :
+
+1. Lancer des recherches manuelles, relire les brouillons dans la file de validation.
+2. Quand les brouillons conviennent, passer `DRY_RUN` à `false`.
+3. Activer le pilote automatique global, puis sur une seule campagne, à 5 envois par jour.
+4. Monter progressivement si la délivrabilité tient.
+
+## Qualité de la découverte — mesures du 10 septembre 2026
+
+Quatre requêtes réelles sondées sur Tavily ont renvoyé 19 résultats, dont 9 n'étaient pas des
+entreprises : sites gouvernementaux, PDF, classements « Les 39 meilleurs sites », sites d'offres
+d'emploi. Les filtres ont été étendus en conséquence et ramènent le bruit à environ un résultat
+sur dix.
+
+Le nom d'entreprise ne provient plus du titre de la page quand celui-ci se lit comme une phrase :
+`h2k.fr` donne « H2K » et non « Entreprise de logistique et stockage de marchandises, préparation
+de commandes et expéditions pour professionnels », qui se retrouvait dans l'objet de chaque message.
+
+Le levier principal reste la formulation du ciblage. Décrire les entreprises — « PME logistique
+e-commerce préparation de commandes » — ramène des entreprises ; décrire leur problème ramène des
+articles sur ce problème. Le ciblage est modifiable depuis la fiche campagne.
+
 ## Ce qu'il reste avant les recherches automatiques
 
 1. Raccorder Inngest et synchroniser l'application sur `/api/inngest`.
 2. Confirmer que la boîte `matthew.delamotte@mdl-advisory.com` existe bien dans Hostinger.
-3. Créer le webhook Resend vers `/api/webhooks/resend` et renseigner `RESEND_WEBHOOK_SECRET`.
+3. Passer `DRY_RUN` à `false` une fois les brouillons validés.
 4. Activer une ou deux campagnes parmi les sept brouillons créés (France, Belgique, Suisse, Luxembourg, Royaume-Uni, Irlande, États-Unis).
 5. Passer `DRY_RUN` à `false`, puis activer le pilote automatique par paliers.
 
