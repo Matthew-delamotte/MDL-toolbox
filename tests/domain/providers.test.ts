@@ -44,6 +44,18 @@ describe("discovery keeps companies and drops publishers", () => {
     expect(looksLikeDirectory("https://atelier-colis.fr/", "Atelier Colis — logistique e-commerce pour marques")).toBe(false);
     expect(looksLikeDirectory("https://guide-tourisme-alsace.fr/", "Guide Tourisme Alsace")).toBe(false);
   });
+  // Numbered rankings, PDFs and institutional pages surfaced on real searches.
+  it("recognises numbered rankings and documents", () => {
+    expect(looksLikeDirectory("https://dedi-agency.com/p", "10 grandes marques françaises qui utilisent Shopify en 2026")).toBe(true);
+    expect(looksLikeDirectory("https://loela.fr/p", "8 boutiques de Créateurs de Mode Français à connaître")).toBe(true);
+    expect(looksLikeDirectory("https://wizishop.fr/p", "Les 39 Meilleurs Sites E-commerce en France")).toBe(true);
+    expect(looksLikeDirectory("https://blogdumoderateur.com/p", "E-commerce : les 100 marques les plus performantes en France")).toBe(true);
+    expect(looksLikeDirectory("https://ifc.org/handbook.pdf", "Manuel de Gouvernance des Entreprises Familiales")).toBe(true);
+    expect(looksLikeDirectory("https://example.fr/p", "[PDF] Rapport annuel du secteur")).toBe(true);
+    // A company whose name starts with a number is not a ranking.
+    expect(looksLikeDirectory("https://3suisses.fr/", "3 Suisses")).toBe(false);
+    expect(looksLikeDirectory("https://corlet.fr/", "Prestataire logistique e-commerce : entrepôt, stockage")).toBe(false);
+  });
   it("keeps only real companies and cleans markup out of their name", async () => {
     vi.stubEnv("TAVILY_API_KEY", "test-secret");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(tavilyResponse([
