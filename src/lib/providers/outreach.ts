@@ -21,7 +21,7 @@ export function outreachInstruction(language: "fr" | "en", step: number): string
     `This email is addressed to the prospect: write the subject and every paragraph in ${target} and in that language only.`,
     "Write as Matthew, an independent consultant writing to a peer he respects, not a vendor running a campaign. The reader gets several automated emails a week and recognises them instantly. This one must not read like one.",
     ANGLE[Math.min(step, 2)],
-    "subject: two to five words, plain and low-key, like an internal note from a colleague. No sales pitch, no urgency, no question mark, no exclamation, no emoji, no reader first name, no sender company name.",
+    "subject: two to five words, plain and low-key, like an internal note from a colleague. Start with a lowercase letter unless the first word is a proper noun. No sales pitch, no urgency, no question mark, no exclamation, no emoji, no reader first name, no sender company name.",
     `paragraphs: ${step === 0 ? "exactly three paragraphs" : step === 1 ? "two paragraphs" : "one or two paragraphs"}, two or three sentences each, ${step === 0 ? "130" : "80"} words maximum in total. Short sentences, everyday professional language.`,
   ];
   if (step === 0) {
@@ -37,6 +37,8 @@ export function outreachInstruction(language: "fr" | "en", step: number): string
     "Forbidden without exception: any price, any figure in euros or dollars, any delivery date, any guarantee, any commitment on scope, any invented client, reference, statistic or result.",
     "Forbidden wording: \"j'espere que ce message vous trouve\", \"je me permets\", \"n'hesitez pas\", \"leader\", \"cle en main\", \"solution innovante\", \"synergie\", \"revolutionnaire\", \"incontournable\", \"I hope this email finds you well\", \"leverage\", \"best-in-class\", \"cutting-edge\", \"game-changer\". No exclamation mark, no emoji, no bullet list, no link, no postscript.",
     "Address their world more than yours: \"vous\" must outweigh \"je\". Name the company at most twice. Claim nothing about the prospect that the supplied research does not support.",
+    "Register: write the way a professional speaks, not the way a consulting deck writes. Short verbs, direct sentences. In French, avoid the consultant tics \"ce type de\", \"cela suggere\", \"je pourrais imaginer\", \"permettrait de\", \"dans le cadre de\", \"en s'appuyant sur\", \"au sein de\", \"problematique\", \"accompagner\". Say \"on\" where a consultant would say \"je pourrais envisager de\". Copy the prospect's own words for their business rather than paraphrasing them into jargon, and fix an obvious typo when you quote them.",
+    "Leave the door open: in one short clause, let the reader see that this one idea is an example of what you do - automating a process, building a small internal tool, cleaning up data - without listing offers and without a catalogue.",
   );
   return lines.join("\n");
 }
