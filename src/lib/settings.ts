@@ -13,7 +13,8 @@ export const settingsSchema = z.object({
 export function isDryRun() { return process.env.DRY_RUN !== "false"; }
 export function defaultSettings(): Settings {
   return { dryRun: isDryRun(), autopilotEnabled: false, minLeadScore: 75, dailyEmailCap: 40, dailyNewContactCap: 20,
-    autoReplyConfidence: 0.86, companyName: "MDL Advisory", senderName: "Matthew", signature: "Matthew\nMDL Advisory",
+    autoReplyConfidence: 0.86, companyName: "MDL Advisory", senderName: "Matthew de Lamotte",
+    signature: "Matthew de Lamotte\nMDL Advisory — outils internes et automatisations sur mesure\nmatthew.delamotte@mdl-advisory.com\nmdl-advisory.com",
     calendarUrl: "", fromEmail: process.env.RESEND_FROM_EMAIL || "", replyTo: process.env.RESEND_REPLY_TO || "", aiModel: process.env.OPENAI_MODEL || "gpt-4.1-mini" };
 }
 export async function getSettings(): Promise<Settings> {
