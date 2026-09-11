@@ -207,7 +207,7 @@ export function soloClaims(text: string): string[] { return match(SOLO_CLAIM, te
  * An email that ends on what the sender does, with no invitation, gets no reply. The model drops
  * the closing line first when it is squeezing itself under the word limit.
  */
-const REPLY_CUE = /\?|\bsi (vous|la friction|le besoin|votre besoin|c['’]est|[çc]a se joue)\b|\b(dites-moi|dites moi|r[ée]pondez|on en parle|on part sur|on regarde|je peux|j['’]interviens|je construis|je vous dirai|tell me|let me know|i can|we scope|reply)\b/i;
+const REPLY_CUE = /\?|\bsi (vous|la friction|le besoin|votre besoin|c['’]est|[çc]a se joue|ce n['’]est)\b|\b(dites-moi|dites moi|r[ée]pondez|en (discuter|parler|[ée]changer)|on en parle|on part sur|on regarde|regarder ensemble|voir ensemble|je peux|j['’]interviens|je construis|je vous dirai|tell me|let me know|talk it through|i can|we scope|reply)\b/i;
 
 export function missingClosingAsk(paragraphs: string[]): boolean {
   const last = paragraphs[paragraphs.length - 1] || "";
@@ -381,7 +381,7 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
   const facts = (context.research || []).filter(f => f.status !== "unknown" && f.value && f.value !== UNKNOWN);
   const tool = facts.find(f => /^technolog|^crm$|^ecommerce$|^automation$/i.test(f.field));
   const business = facts.find(f => /^business$/i.test(f.field));
-  const toolName = tool ? firstSentence(tool.value, 8) : "";
+  const toolName = tool ? firstSentence(tool.value.split(",")[0], 6) : "";
   const businessLine = business ? firstSentence(business.value, 20) : "";
   // The offer is an internal document, always written in French. Splicing it verbatim into an
   // English message produced a half-French email; the model can translate it, the template cannot.
