@@ -229,8 +229,8 @@ export function revisionNote(rawParagraphs: string[], step: number): string | nu
   if (casual.length) notes.push(`It is too familiar for a first message between professionals who have not met: ${casual.map(t => `"${t}"`).join(", ")}. Keep it measured.`);
   const diagnosis = diagnosisIssues(text);
   if (diagnosis.length) notes.push(`It claims to know their difficulties: ${diagnosis.map(t => `"${t}"`).join(", ")}. You do not know that. Replace the claim with a question about how they actually handle it today.`);
-  if (step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"))) notes.push("It never asks them anything before the closing line. The second paragraph must be a real question about how they work today, ending in a question mark.");
-  if (step === 0 && paragraphs.length > 3) notes.push(`It runs to ${paragraphs.length} paragraphs instead of three: one observation, one question, one on what you build and the closing. Merge or cut, do not add a fourth.`);
+  if (step === 0 && missingQuestion(paragraphs)) notes.push("It never asks them anything. The second paragraph must be a real question about how they work today, ending in a question mark.");
+  if (step === 0 && paragraphs.length !== 3) notes.push(`It is laid out in ${paragraphs.length} paragraph(s) instead of three: one observation, one question, one on what you build and the closing. Never split a sentence across two of them.`);
   if (missingClosingAsk(paragraphs)) notes.push("It ends on what you do, with nothing for the reader to answer. The last sentence must invite a reply in a warm, ordinary way - tell them that a line describing how they work today is enough, and that you will say straight whether there is anything worth building.");
   const tics = styleIssues(text);
   if (tics.length) notes.push(`It uses wording that is banned because it reads as consulting boilerplate: ${tics.map(t => `"${t}"`).join(", ")}. Say the same thing the way someone would say it out loud.`);
@@ -243,10 +243,10 @@ export function revisionNote(rawParagraphs: string[], step: number): string | nu
 export function draftFaults(rawParagraphs: string[], step: number): number {
   const paragraphs = mergeSplitSentences(rawParagraphs);
   const text = paragraphs.join(" ");
-  const missingQuestion = step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?")) ? 1 : 0;
+  const unasked = step === 0 && missingQuestion(paragraphs) ? 1 : 0;
   const extraParagraphs = step === 0 ? Math.max(0, paragraphs.length - 3) : 0;
   return teamVoiceIssues(text).length * 2 + diagnosisIssues(text).length * 2 + soloClaims(text).length * 2
-    + styleIssues(text).length + casualIssues(text).length + missingQuestion * 2
+    + styleIssues(text).length + casualIssues(text).length + unasked * 2
     + (missingClosingAsk(paragraphs) ? 2 : 0) + extraParagraphs;
 }
 
@@ -260,8 +260,9 @@ export function isUnsendable(rawParagraphs: string[], step: number): boolean {
   const text = paragraphs.join(" ");
   if (teamVoiceIssues(text).length || soloClaims(text).length || diagnosisIssues(text).length) return true;
   if (missingClosingAsk(paragraphs)) return true;
-  if (step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"))) return true;
-  if (step === 0 && paragraphs.length > 3) return true;
+  if (step === 0 && missingQuestion(paragraphs)) return true;
+  // Layout is worth a rewrite, never worth discarding good copy for the plain template.
+  if (step === 0 && paragraphs.length > 4) return true;
   return wordCount(text) > MAX_WORDS[Math.min(step, 2)] * 1.4;
 }
 
@@ -314,6 +315,17 @@ const OPT_OUT_EN = [
 
 export function optOut(language: "fr" | "en", seed = ""): string {
   return pick(language === "fr" ? OPT_OUT_FR : OPT_OUT_EN, seed);
+}
+
+/**
+ * The email must genuinely ask them something, not just invite a reply at the end. Looking only at
+ * the paragraphs before the last one made the rule unsatisfiable when the whole message collapsed
+ * into a single block - which happens whenever a sentence split across paragraphs is rejoined - and
+ * it rejected drafts that did contain their question.
+ */
+export function missingQuestion(paragraphs: string[]): boolean {
+  if (paragraphs.length > 1) return !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"));
+  return !paragraphs.join(" ").includes("?");
 }
 
 /** True when the message already gives the reader a way out, in any of its wordings. */

@@ -265,9 +265,22 @@ describe("unsendable drafts fall back", () => {
   });
   // Observed on a real draft: four paragraphs and 170 words, well past the limit.
   it("rejects a rambling draft", () => {
-    expect(isUnsendable([...clean, "Et un quatrième paragraphe. Dites-moi."], 0)).toBe(true);
     const long = [clean[0], clean[1], Array.from({ length: 160 }, () => "mot").join(" ") + " Dites-moi."];
     expect(isUnsendable(long, 0)).toBe(true);
+    expect(isUnsendable([...clean, "Quatre.", "Cinq. Dites-moi."], 0)).toBe(true);
+  });
+  // Layout alone is worth a rewrite, never worth swapping good copy for the plain template.
+  it("asks for a rewrite on layout without discarding the draft", () => {
+    const fourParagraphs = [...clean, "Et un quatrième paragraphe. Dites-moi."];
+    expect(revisionNote(fourParagraphs, 0)).toContain("paragraph(s) instead of three");
+    expect(isUnsendable(fourParagraphs, 0)).toBe(false);
+  });
+  // The whole message collapsing into one block made the question rule unsatisfiable.
+  it("sees the question in a message that arrived as a single paragraph", () => {
+    const single = ["J'ai vu que vous utilisez un WMS. Comment suivez-vous les anomalies aujourd'hui : dans le WMS, ou à côté ? Je conçois des outils internes sur mesure. Nous pouvons en discuter."];
+    expect(isUnsendable(single, 0)).toBe(false);
+    expect(revisionNote(single, 0)).toContain("paragraph(s) instead of three");
+    expect(revisionNote(single, 0)).not.toContain("never asks them anything");
   });
   it("tolerates a residual consulting tic rather than losing the personalisation", () => {
     const withTic = [clean[0], clean[1], "Je conçois ce type d'outil sur mesure. Dites-moi comment vous faites."];
