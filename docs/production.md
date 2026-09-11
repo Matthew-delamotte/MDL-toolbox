@@ -120,6 +120,31 @@ Le levier principal reste la formulation du ciblage. Décrire les entreprises �
 e-commerce préparation de commandes » — ramène des entreprises ; décrire leur problème ramène des
 articles sur ce problème. Le ciblage est modifiable depuis la fiche campagne.
 
+## Rédaction des messages
+
+Le corps de l'email était un gabarit figé dans le code : l'IA ne remplissait qu'un bout de phrase et
+tous les prospects recevaient les quatre mêmes phrases. C'est exactement ce qui fait reconnaître un
+envoi automatique. Le modèle rédige maintenant l'objet et les paragraphes à partir des faits relevés
+sur l'entreprise.
+
+Ce qui reste déterministe, donc indépendant du modèle : l'accueil, la signature et la ligne de
+désinscription. La conformité ne dépend jamais d'une sortie probabiliste.
+
+Trois contrôles s'appliquent au texte écrit, dans `src/lib/providers/outreach.ts` :
+
+| Contrôle | Effet |
+| --- | --- |
+| `outreachIssues` | Un prix, un délai chiffré, une garantie ou un lien fait basculer sur le gabarit de repli. |
+| `styleIssues` | Les tics de registre conseil — « ce type de », « permettrait de », « n'hésitez pas » — sont cités au modèle pour une réécriture. |
+| `revisionNote` | Un brouillon trop long déclenche la même passe unique de réécriture, conservée seulement si elle améliore le texte. |
+
+Longueurs visées : 110 mots au premier contact, 70 à la relance, 45 au dernier message. La séquence
+est jour 0, jour 3 et jour 7 ; chaque message doit se tenir seul et apporter un angle nouveau.
+
+Pas d'images ni de HTML : dans un premier message froid, une image est un signal de campagne, pèse
+sur la délivrabilité et se voit immédiatement. La mise en forme passe par des paragraphes courts et
+une signature propre.
+
 ## Ce qu'il reste avant les recherches automatiques
 
 1. Raccorder Inngest et synchroniser l'application sur `/api/inngest`.

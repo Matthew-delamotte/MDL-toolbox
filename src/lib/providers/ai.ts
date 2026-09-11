@@ -4,7 +4,7 @@ import { z } from "zod";
 import { classifyReplyRules } from "../domain/replies";
 import { languageFor, normalizeScore, detectRisks, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { classificationSchema, draftSchema, offerSchema, outreachSchema, researchSchema, scoreSchema, validateOffer } from "../domain/schemas";
-import { assembleOutreach, fallbackOutreach, outreachInstruction, outreachIssues, revisionNote, tidyOutreach, wordCount } from "./outreach";
+import { assembleOutreach, fallbackOutreach, outreachInstruction, outreachIssues, revisionNote, styleIssues, tidyOutreach, wordCount } from "./outreach";
 import { consumeBudget, isBudgetError } from "./budget";
 import { tavilySearch } from "./sources";
 import type { AdaptiveOffer, AIService, DraftResult, DraftSettings, LeadContext, OfferTemplateInput, ReplyClassification, ResearchFact, ScoreResult } from "./types";
@@ -63,8 +63,11 @@ export class OpenAIService implements AIService {
     const note = revisionNote(result.paragraphs, step);
     if (note) {
       const revised = await this.structured(outreachSchema, "outreach_email", `${outreachInstruction(language, step)}\n\n${note}`, { ...payload, previousDraft: result.paragraphs });
-      // Keep the revision only if it actually improved: a second pass can make things worse.
-      if (!revisionNote(revised.paragraphs, step) || wordCount(revised.paragraphs.join(" ")) < wordCount(result.paragraphs.join(" "))) result = revised;
+      // Keep the revision only if it actually improved: a second pass can make things worse, and a
+      // shorter draft that reintroduced boilerplate is not an improvement.
+      const before = styleIssues(result.paragraphs.join(" ")).length, after = styleIssues(revised.paragraphs.join(" ")).length;
+      const shorter = wordCount(revised.paragraphs.join(" ")) < wordCount(result.paragraphs.join(" "));
+      if (after < before || (after === before && shorter)) result = revised;
     }
     const body = assembleOutreach(context, settings, language, result.paragraphs);
     // The signature legitimately carries an address and a site: only the written paragraphs are checked.
