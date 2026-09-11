@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, greeting, outreachInstruction, outreachIssues, revisionNote, styleIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, diagnosisIssues, draftFaults, fallbackOutreach, greeting, outreachInstruction, outreachIssues, revisionNote, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
 const settings: DraftSettings = {
@@ -77,10 +77,65 @@ describe("register enforcement", () => {
   it("asks for a rewrite that quotes the offending wording back", () => {
     const note = revisionNote(["Ce type de flux produit des données dispersées."], 0);
     expect(note).toContain("Ce type de");
-    expect(revisionNote(["Quand le volume monte, le suivi finit dans un tableur."], 0)).toBeNull();
+    expect(revisionNote(["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même."], 0)).toBeNull();
   });
   it("asks for a rewrite when the draft runs long", () => {
-    const long = [Array.from({ length: 150 }, () => "mot").join(" ")];
+    const long = [Array.from({ length: 150 }, () => "mot").join(" "), "Et vous, comment faites-vous ?", "Fin."];
     expect(revisionNote(long, 0)).toContain("over the 110-word limit");
+  });
+});
+
+describe("solo voice", () => {
+  // Matthew works alone: writing for a team is both untrue and the giveaway of a mailshot.
+  it("catches anything written on behalf of a company", () => {
+    expect(teamVoiceIssues("Nous construisons des outils internes.")).not.toHaveLength(0);
+    expect(teamVoiceIssues("Chez MDL Advisory, on conçoit des outils sur mesure.")).not.toHaveLength(0);
+    expect(teamVoiceIssues("Notre équipe peut vous aider.")).not.toHaveLength(0);
+    expect(teamVoiceIssues("We build small internal tools.")).not.toHaveLength(0);
+  });
+  it("leaves the first person singular and the shared \"on\" alone", () => {
+    expect(teamVoiceIssues("Je conçois et je code moi-même de petits outils internes.")).toEqual([]);
+    expect(teamVoiceIssues("Si le sujet vous parle, on en parle quand vous voulez.")).toEqual([]);
+    expect(teamVoiceIssues("On regarde ensemble votre façon de faire.")).toEqual([]);
+  });
+  it("quotes the company voice back for a rewrite", () => {
+    const note = revisionNote(["Une observation.", "Et chez vous ?", "Nous construisons des outils internes."], 0);
+    expect(note).toContain("works alone");
+    expect(note).toContain("Nous");
+  });
+});
+
+describe("no diagnosis", () => {
+  // Asserting a problem nobody described is what makes a template read as a guess.
+  it("catches a claim about difficulties the prospect never described", () => {
+    expect(diagnosisIssues("Quand le volume augmente, le suivi devient vite complexe.")).not.toHaveLength(0);
+    expect(diagnosisIssues("Suivre toutes les commandes dans un seul outil n'est pas simple.")).not.toHaveLength(0);
+    expect(diagnosisIssues("Vous perdez du temps sur les ressaisies.")).not.toHaveLength(0);
+  });
+  it("leaves a plain observation and a question alone", () => {
+    expect(diagnosisIssues("Vous préparez et expédiez les commandes de vos clients e-commerce.")).toEqual([]);
+    expect(diagnosisIssues("Comment suivez-vous les anomalies aujourd'hui : dans le WMS, ou dans un fichier à côté ?")).toEqual([]);
+  });
+  it("requires a question before the closing paragraph", () => {
+    const asserted = ["Vous expédiez pour des marques.", "Un tableau de bord regrouperait vos données.", "Je travaille seul."];
+    expect(revisionNote(asserted, 0)).toContain("must be a real question");
+    const asked = ["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même."];
+    expect(revisionNote(asked, 0)).toBeNull();
+  });
+  it("scores a draft so a rewrite is kept only when it moves closer", () => {
+    const bad = ["Vous expédiez.", "Quand le volume augmente, ça devient complexe.", "Nous construisons des outils."];
+    const good = ["Vous expédiez.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même."];
+    expect(draftFaults(good, 0)).toBeLessThan(draftFaults(bad, 0));
+    expect(draftFaults(good, 0)).toBe(0);
+  });
+});
+
+describe("template fallback", () => {
+  it("asks rather than asserts, and speaks for one person", () => {
+    const draft = fallbackOutreach(context, settings, 0);
+    expect(draft.body).toContain("?");
+    expect(draft.body).toContain("Je travaille seul");
+    expect(teamVoiceIssues(draft.body.split("Matthew de Lamotte")[0])).toEqual([]);
+    expect(diagnosisIssues(draft.body)).toEqual([]);
   });
 });

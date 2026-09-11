@@ -4,7 +4,7 @@ import { z } from "zod";
 import { classifyReplyRules } from "../domain/replies";
 import { languageFor, normalizeScore, detectRisks, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { classificationSchema, draftSchema, offerSchema, outreachSchema, researchSchema, scoreSchema, validateOffer } from "../domain/schemas";
-import { assembleOutreach, fallbackOutreach, outreachInstruction, outreachIssues, revisionNote, styleIssues, tidyOutreach, wordCount } from "./outreach";
+import { assembleOutreach, draftFaults, fallbackOutreach, outreachInstruction, outreachIssues, revisionNote, tidyOutreach, wordCount } from "./outreach";
 import { consumeBudget, isBudgetError } from "./budget";
 import { tavilySearch } from "./sources";
 import type { AdaptiveOffer, AIService, DraftResult, DraftSettings, LeadContext, OfferTemplateInput, ReplyClassification, ResearchFact, ScoreResult } from "./types";
@@ -57,23 +57,25 @@ export class OpenAIService implements AIService {
       sender: { name: settings.senderName, company: settings.companyName },
     };
     let result = await this.structured(outreachSchema, "outreach_email", outreachInstruction(language, step), payload);
-    // Length and register are the constraints a model drops first, and a padded cold email full of
-    // consulting boilerplate is exactly what a prospect recognises as automated. One revision pass
-    // costs a request; the alternative is sending that version.
-    const note = revisionNote(result.paragraphs, step);
-    if (note) {
+    // Voice, absence of diagnosis, register and length are the constraints a model drops first, and
+    // each of them is what a prospect recognises as an automated send. Up to two revision passes
+    // cost a request each; the alternative is sending the version that gives the game away.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const note = revisionNote(result.paragraphs, step);
+      if (!note) break;
       const revised = await this.structured(outreachSchema, "outreach_email", `${outreachInstruction(language, step)}\n\n${note}`, { ...payload, previousDraft: result.paragraphs });
-      // Keep the revision only if it actually improved: a second pass can make things worse, and a
-      // shorter draft that reintroduced boilerplate is not an improvement.
-      const before = styleIssues(result.paragraphs.join(" ")).length, after = styleIssues(revised.paragraphs.join(" ")).length;
+      // A rewrite is kept only when it moves closer to the target: a second pass can make it worse,
+      // and a shorter draft that reintroduced boilerplate is not an improvement.
+      const before = draftFaults(result.paragraphs, step), after = draftFaults(revised.paragraphs, step);
       const shorter = wordCount(revised.paragraphs.join(" ")) < wordCount(result.paragraphs.join(" "));
       if (after < before || (after === before && shorter)) result = revised;
+      else break;
     }
     const body = assembleOutreach(context, settings, language, result.paragraphs);
     // The signature legitimately carries an address and a site: only the written paragraphs are checked.
     const issues = outreachIssues(result.paragraphs.join(" "));
     // A disqualifying sentence is not worth editing around: fall back to the template instead.
-    if (issues.length) return fallbackOutreach(context, offer, settings, step);
+    if (issues.length) return fallbackOutreach(context, settings, step);
     return draftSchema.parse({ subject: tidyOutreach(result.subject).slice(0, 180), body, language });
   }
   async classifyReply(body: string): Promise<ReplyClassification> {
@@ -117,7 +119,7 @@ export class DevelopmentAIService implements AIService {
     const solution = family === "internal-tool-sprint" ? (fr ? "Un petit outil interne pour centraliser le suivi opérationnel" : "A small internal tool to centralize operational tracking") : family === "ops-data-cleanup" ? (fr ? "Nettoyage des données, déduplication et contrôles de qualité" : "Data cleanup, deduplication and quality checks") : (fr ? "Un workflow automatisé avec reporting et alertes d’erreur" : "An automated workflow with reporting and error alerts");
     return validateOffer({ offerTemplateId: template.id, title, problem: fr ? "Si vos équipes ressaisissent des données ou consolident manuellement des rapports, ce travail pourrait être simplifié. À confirmer ensemble." : "If your team re-enters data or consolidates reports manually, this work could be simplified. This is a hypothesis to confirm together.", proposedSolution: solution, deliverables: fr ? ["Cartographie du besoin confirmée ensemble", "Implémentation du périmètre convenu", "Tests et documentation de prise en main"] : ["Workflow assessment with your team", "Implementation of the agreed scope", "Tests and handover documentation"], estimatedPriceMin: template.minPrice, estimatedPriceMax: template.maxPrice, estimatedDuration: `${template.typicalDeliveryDays} — ${fr ? "indicatif, sous réserve de cadrage" : "indicative, subject to scoping"}`, rationale: `Repli local. ${template.name} choisie \u00e0 partir du contexte fourni ; les hypoth\u00e8ses commerciales restent \u00e0 confirmer.` }, templates);
   }
-  async draftOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step = 0): Promise<DraftResult> { return fallbackOutreach(context, offer, settings, step); }
+  async draftOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step = 0): Promise<DraftResult> { void offer; return fallbackOutreach(context, settings, step); }
   async classifyReply(body: string): Promise<ReplyClassification> { return classifyReplyRules(body); }
   async draftReply(context: LeadContext, incoming: string, classification: ReplyClassification, settings: DraftSettings): Promise<DraftResult> {
     const fr = classification.language === "fr";
