@@ -364,7 +364,8 @@ function clip(text: string, maxWords: number): string {
 /** The first sentence only: a scraped description or an internal offer write-up runs on for lines. */
 function firstSentence(text: string, maxWords: number): string {
   const sentence = (text || "").split(/(?<=[.?!])\s|\n/)[0] || "";
-  return clip(tidyOutreach(sentence).replace(/[.?!:,;\s]+$/, ""), maxWords);
+  // Trimming before the clip leaves the comma that the clip itself exposes: trim after.
+  return clip(tidyOutreach(sentence), maxWords).replace(/[.?!:,;\s]+$/, "");
 }
 
 export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step: number): { subject: string; body: string; language: "fr" | "en" } {
