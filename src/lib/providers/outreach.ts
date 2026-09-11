@@ -1,5 +1,5 @@
 import type { AdaptiveOffer, DraftSettings, LeadContext } from "./types";
-import { languageFor, UNKNOWN } from "../domain/rules";
+import { languageFor, normalizedCountry, UNKNOWN } from "../domain/rules";
 
 /**
  * Cold outreach used to be a fixed template with one AI-written noun phrase dropped into it:
@@ -275,6 +275,17 @@ export function tidyOutreach(text: string): string {
     .trim();
 }
 
+/**
+ * A French business on a .com domain has no country the research could establish, and the contact
+ * record then keeps its "en" default: a prospect found by the France campaign was written to in
+ * English. The campaign country decides when the company's own is unknown. It is a presentation
+ * choice, not a claim: the company country stays unknown, so targeting still demands a human.
+ */
+export function outreachLanguage(context: LeadContext): "fr" | "en" {
+  const known = normalizedCountry(context.company.country) ? context.company.country : context.campaignCountry;
+  return languageFor(known ?? undefined, context.contact?.language);
+}
+
 export function greeting(context: LeadContext, language: "fr" | "en"): string {
   const first = context.contact?.firstName?.trim() || context.contact?.fullName?.trim().split(" ")[0] || "";
   const hello = language === "fr" ? "Bonjour" : "Hi";
@@ -330,7 +341,7 @@ function firstSentence(text: string, maxWords: number): string {
 }
 
 export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step: number): { subject: string; body: string; language: "fr" | "en" } {
-  const language = languageFor(context.company.country, context.contact?.language);
+  const language = outreachLanguage(context);
   const fr = language === "fr";
   const company = context.company.name.replace(/\s*\[Demo\]/, "");
   // A scraped description is often unpunctuated prose. Clipping it yields a sentence that stops on
@@ -338,7 +349,9 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
   const sentence = firstSentence(context.company.description || "", 200);
   const length = sentence ? sentence.split(/\s+/).filter(Boolean).length : 0;
   const activity = length >= 5 && length <= 22 && !/[:;,]$/.test(sentence) ? sentence : "";
-  const intervention = firstSentence(offer.proposedSolution || "", 16);
+  // The offer is an internal document, always written in French. Splicing it verbatim into an
+  // English message produced a half-French email; the model can translate it, the template cannot.
+  const intervention = fr ? firstSentence(offer.proposedSolution || "", 16) : "";
   const scope = intervention ? `${intervention.charAt(0).toLowerCase()}${intervention.slice(1)}` : "";
   let paragraphs: string[];
   if (step >= 2) {

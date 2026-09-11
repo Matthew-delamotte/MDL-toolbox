@@ -4,7 +4,7 @@ import { z } from "zod";
 import { classifyReplyRules } from "../domain/replies";
 import { languageFor, normalizeScore, detectRisks, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { classificationSchema, draftSchema, offerSchema, outreachSchema, researchSchema, scoreSchema, validateOffer } from "../domain/schemas";
-import { assembleOutreach, draftFaults, fallbackOutreach, isUnsendable, outreachInstruction, outreachIssues, revisionNote, tidyOutreach, wordCount } from "./outreach";
+import { assembleOutreach, draftFaults, fallbackOutreach, isUnsendable, outreachInstruction, outreachIssues, outreachLanguage, revisionNote, tidyOutreach, wordCount } from "./outreach";
 import { consumeBudget, isBudgetError } from "./budget";
 import { tavilySearch } from "./sources";
 import type { AdaptiveOffer, AIService, DraftResult, DraftSettings, LeadContext, OfferTemplateInput, ReplyClassification, ResearchFact, ScoreResult } from "./types";
@@ -46,7 +46,7 @@ export class OpenAIService implements AIService {
     return validateOffer(result, templates);
   }
   async draftOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step = 0): Promise<DraftResult> {
-    const language = languageFor(context.company.country, context.contact?.language);
+    const language = outreachLanguage(context);
     const evidence = (context.research || []).filter(fact => fact.status !== "unknown").slice(0, 10);
     const payload = {
       company: { name: context.company.name, description: context.company.description, industry: context.company.industry, technologies: context.company.technologies },

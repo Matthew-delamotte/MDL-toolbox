@@ -8,7 +8,7 @@ export async function audit(action: string, message: string, entityId?: string, 
 }
 export async function contextFor(leadId: string) {
   const lead = await db.lead.findUniqueOrThrow({where:{id:leadId}, include:{company:true, contact:true, opportunity:true, campaign:true}});
-  const context: LeadContext = {company:lead.company, contact:lead.contact, opportunity:lead.opportunity, research:Array.isArray(lead.company.research) ? lead.company.research as unknown as ResearchFact[] : [], detectedProblems:lead.detectedProblems, totalScore:lead.totalScore};
+  const context: LeadContext = {company:lead.company, contact:lead.contact, opportunity:lead.opportunity, research:Array.isArray(lead.company.research) ? lead.company.research as unknown as ResearchFact[] : [], detectedProblems:lead.detectedProblems, totalScore:lead.totalScore, campaignCountry:lead.campaign?.country ?? null};
   return {lead, context};
 }
 export async function review(input: {leadId: string; messageId?: string; type: string; title: string; description: string; proposedAction?: string}) {

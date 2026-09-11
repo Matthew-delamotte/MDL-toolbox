@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, isUnsendable, mergeSplitSentences, missingClosingAsk, optOut, outreachInstruction, outreachIssues, revisionNote, signOff, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, isUnsendable, mergeSplitSentences, missingClosingAsk, optOut, outreachInstruction, outreachIssues, outreachLanguage, revisionNote, signOff, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import { languageFor } from "../../src/lib/domain";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
@@ -360,5 +360,35 @@ describe("opt-out language", () => {
     expect(languageFor("France", "en")).toBe("fr");
     expect(optOut(languageFor("France", "en"))).toContain("ne vous recontacterai plus");
     expect(optOut(languageFor("United Kingdom", "en"))).toContain("won't contact you again");
+  });
+});
+
+describe("language of a company whose country is unknown", () => {
+  // Observed: a French logistics firm on a .com domain was written to in English, and the French
+  // offer text was spliced into that English template.
+  const unknownCountry = {
+    company: { name: "Ezytail", domain: "ezytail.com", country: "Inconnu", industry: "Logistique e-commerce", description: "logistique ecommerce et préparation de commande", technologies: [] },
+    contact: { fullName: "Stéphane Brunel", firstName: "Stéphane", email: "stephane.brunel@ezytail.com", emailStatus: "VERIFIED", language: "en" },
+    campaignCountry: "France",
+  } as unknown as LeadContext;
+
+  it("follows the campaign country when the company's own is unknown", () => {
+    expect(outreachLanguage(unknownCountry)).toBe("fr");
+  });
+  it("still follows the company country when it is known", () => {
+    expect(outreachLanguage({ ...unknownCountry, company: { ...unknownCountry.company, country: "United Kingdom" } } as unknown as LeadContext)).toBe("en");
+  });
+  it("falls back to the contact when nothing else is known", () => {
+    expect(outreachLanguage({ ...unknownCountry, campaignCountry: null } as unknown as LeadContext)).toBe("en");
+  });
+  it("writes a whole message in one language, offer text included", () => {
+    const offer = { proposedSolution: "Concevoir un outil interne dédié au suivi des commandes", deliverables: ["Cadrage"] } as unknown as Parameters<typeof fallbackOutreach>[1];
+    const french = fallbackOutreach(unknownCountry, offer, settings, 0);
+    expect(french.language).toBe("fr");
+    expect(french.body).toContain("Concevoir un outil interne".toLowerCase().charAt(0) + "oncevoir un outil interne");
+    const english = fallbackOutreach({ ...unknownCountry, campaignCountry: "United Kingdom" } as unknown as LeadContext, offer, settings, 0);
+    expect(english.language).toBe("en");
+    expect(english.body).not.toContain("Concevoir");
+    expect(english.body).not.toContain("outil interne dédié");
   });
 });

@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { createLeadSourceAdapter, findContact, parseManualCsv, type RawOpportunity } from '@/lib/providers';
-import { languageFor, leadDedupeKey, normalizeDomain, normalizeEmail } from '@/lib/domain';
+import { languageFor, leadDedupeKey, normalizeDomain, normalizeEmail, normalizedCountry } from '@/lib/domain';
 import { audit, json } from './shared';
 
 function namedContactIdentity(companyId: string, fullName: string) {
@@ -74,7 +74,7 @@ export async function enrichCompany(leadId:string) {
 export async function findLeadContact(leadId:string) {
   const source = await db.sourceConfig.findUnique({where:{name:'Hunter contacts'}});
   if (source && !source.enabled) { await audit('CONTACT_DISCOVERY_DISABLED','La recherche de contacts Hunter est désactivée',leadId); return null; }
-  const lead = await db.lead.findUniqueOrThrow({where:{id:leadId},include:{company:true,contact:true}});
+  const lead = await db.lead.findUniqueOrThrow({where:{id:leadId},include:{company:true,contact:true,campaign:true}});
   if (lead.contact?.emailStatus === 'VERIFIED') return lead.contact;
   if (lead.company.isDemo) return lead.contact;
   const found = await findContact(lead.company.domain,lead.company.employeeEstimate ?? undefined,/software|technical|saas/i.test(lead.company.industry));
@@ -92,7 +92,7 @@ export async function findLeadContact(leadId:string) {
     });
     // Hunter returns no language: without this the contact keeps the "en" default and a French
     // prospect receives an English opt-out line.
-    const language = languageFor(lead.company.country, found.language);
+    const language = languageFor(normalizedCountry(lead.company.country) ? lead.company.country : lead.campaign?.country, found.language);
     const result = existing ? await tx.contact.update({where:{id:existing.id},data:{...found,email,language}}) : await tx.contact.create({data:{...found,email,language,companyId:lead.companyId,source:found.source ?? 'HUNTER'}});
     await tx.lead.update({where:{id:leadId},data:{contactId:result.id}});
     return result;
