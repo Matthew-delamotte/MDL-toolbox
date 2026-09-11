@@ -129,11 +129,18 @@ paragraphes à partir des faits relevés sur l'entreprise.
 Trois partis pris commandent la forme, et chacun est vérifié sur le texte écrit, pas seulement
 demandé dans la consigne — un modèle lâche ces contraintes en premier.
 
-**Matthew travaille seul, et c'est l'argument.** « nous », « notre équipe », « chez MDL Advisory on »
-le transforment en agence : c'est faux, et c'est le signe le plus visible d'un envoi de masse. Le
-message est écrit à la première personne du singulier. Le seul « on » admis est celui qui désigne
-Matthew et son interlocuteur ensemble. Ce que le lecteur y gagne est dit une fois, sans emphase :
-il parle à la personne qui construit l'outil, et l'outil épouse sa façon de faire.
+**Le message est écrit à la première personne du singulier.** « nous », « notre équipe », « chez MDL
+Advisory on » transforment Matthew en agence : c'est faux, et c'est le signe le plus visible d'un
+envoi de masse. Le seul « on » admis est celui qui désigne Matthew et son interlocuteur ensemble.
+
+En revanche le message ne dit jamais qu'il travaille seul, ni qu'il est indépendant : ce n'est pas
+l'argument. Ce qui est proposé, c'est un outil interne sur mesure réellement adapté à la façon dont
+l'équipe travaille, et la possibilité de le construire avec eux.
+
+**Le ton reste professionnel.** « un truc à fabriquer », « un mot suffit », « du coup » sont trop
+familiers pour un premier message entre gens qui ne se connaissent pas. Le premier paragraphe montre
+qu'on a regardé leur activité — « J'ai vu que vous… », « D'après votre site, vous… » — avec consigne
+de varier la formule pour qu'elle ne devienne pas elle-même un gabarit.
 
 **Le message ne diagnostique pas.** Affirmer un problème que personne n'a décrit — « quand le volume
 augmente, le suivi devient complexe » — trahit une IA qui devine. Le deuxième paragraphe est une
@@ -147,6 +154,8 @@ donne aucune raison de répondre ; le modèle sacrifiait cette ligne pour tenir 
 | --- | --- |
 | `outreachIssues` | Un prix, un délai chiffré, une garantie ou un lien fait basculer sur le gabarit de repli. |
 | `teamVoiceIssues` | « nous », « notre », « on conçoit » : réécriture demandée. |
+| `soloClaims` | « je travaille seul », « je suis indépendant » : réécriture demandée. |
+| `casualIssues` | Registre trop familier pour un premier contact. |
 | `diagnosisIssues` | Toute affirmation sur leurs difficultés : réécriture demandée. |
 | `styleIssues` | Tics de registre conseil — « ce type de », « permettrait de », « n'hésitez pas ». |
 | `missingClosingAsk` | Dernier paragraphe sans invitation à répondre. |
@@ -154,6 +163,11 @@ donne aucune raison de répondre ; le modèle sacrifiait cette ligne pour tenir 
 
 `revisionNote` réunit ces constats en une seule consigne de réécriture, citant les formules
 fautives. Deux passes au maximum, chacune conservée seulement si `draftFaults` diminue.
+
+La formule de clôture — « si vous avez des points de friction, je peux construire avec vous l'outil
+qui les règle » — est imposée, donc proche d'un message à l'autre. C'est le passage reconnaissable si
+deux prospects comparent. L'observation d'ouverture et la question restent propres à chaque
+entreprise, et ce sont elles qui portent la personnalisation.
 
 Longueurs visées : 110 mots au premier contact, 70 à la relance, 45 au dernier message. La séquence
 est jour 0, jour 3 et jour 7 ; chaque message se tient seul et apporte un angle nouveau.
