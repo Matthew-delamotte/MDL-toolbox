@@ -37,7 +37,10 @@ Configurées : `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, 
 `ADMIN_PASSWORD`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_DAILY_REQUEST_LIMIT`, `TAVILY_API_KEY`,
 `TAVILY_MONTHLY_LIMIT`, `HUNTER_API_KEY`, `HUNTER_SEARCH_MONTHLY_LIMIT`, `HUNTER_VERIFY_MONTHLY_LIMIT`,
 `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO`, `RESEND_ALERT_EMAIL`, `ALERT_ALLOWED_SENDERS`,
-`DRY_RUN=true`, `SEED_DEMO=false`, `LOCAL_DATABASE=false`.
+`SEED_DEMO=false`, `LOCAL_DATABASE=false`.
+
+`DRY_RUN` vaut `false` en production depuis le 11 septembre 2026 : les envois sont réels. Il reste
+à `true` en préproduction, pour qu'une URL de preview ne puisse pas écrire à un prospect.
 
 Toutes configurées. `INNGEST_EVENT_KEY` et `INNGEST_SIGNING_KEY` sont posées par l’intégration
 Marketplace ; `RESEND_WEBHOOK_SECRET` a été ajoutée manuellement.
@@ -96,14 +99,20 @@ La découverte planifiée ne fait rien tant que le pilote automatique global est
 La découverte planifiée exige `autopilotEnabled` au niveau du réglage global **et** de la campagne.
 Le même couple autorise l'envoi automatique : il n'existe pas de réglage « chercher sans envoyer ».
 
-En mode simulation (`DRY_RUN=true`), un message traité par le pilote automatique est marqué
-`SIMULATED` et le prospect passe en `CONTACTED` sans qu'aucun email ne parte. Activer le pilote
-automatique en simulation consomme donc des prospects réels pour rien. La séquence correcte est :
+En mode simulation, un message traité par le pilote automatique est marqué `SIMULATED` et le
+prospect passe en `CONTACTED` sans qu'aucun email ne parte : activer le pilote automatique en
+simulation consomme des prospects réels pour rien. Ce risque est levé, la production n'est plus en
+simulation.
 
-1. Lancer des recherches manuelles, relire les brouillons dans la file de validation.
-2. Quand les brouillons conviennent, passer `DRY_RUN` à `false`.
-3. Activer le pilote automatique global, puis sur une seule campagne, à 5 envois par jour.
-4. Monter progressivement si la délivrabilité tient.
+Étapes franchies : recherches manuelles, relecture des brouillons, `DRY_RUN=false`. Reste à valider
+un premier envoi à la main, vérifier qu'il arrive et que la réponse revient bien dans la boîte
+Hostinger, avant d'activer le pilote automatique global puis sur une seule campagne, à 5 envois par
+jour, et de monter progressivement si la délivrabilité tient.
+
+Validation manuelle : approuver un brouillon dans la file appelle `sendMessage` avec le drapeau
+« approuvé », qui lève le contrôle de ciblage — un effectif inconnu ne bloque donc pas un envoi que
+vous avez relu. Les autres règles de sécurité s'appliquent toujours : adresse vérifiée, destinataire
+non désinscrit, campagne active, plafond quotidien.
 
 ## Qualité de la découverte — mesures du 10 septembre 2026
 
@@ -198,9 +207,9 @@ une signature propre.
 
 1. Raccorder Inngest et synchroniser l'application sur `/api/inngest`.
 2. Confirmer que la boîte `matthew.delamotte@mdl-advisory.com` existe bien dans Hostinger.
-3. Passer `DRY_RUN` à `false` une fois les brouillons validés.
+3. Valider un premier envoi réel et vérifier son arrivée.
 4. Activer une ou deux campagnes parmi les sept brouillons créés (France, Belgique, Suisse, Luxembourg, Royaume-Uni, Irlande, États-Unis).
-5. Passer `DRY_RUN` à `false`, puis activer le pilote automatique par paliers.
+5. Activer le pilote automatique par paliers.
 
 ## Plafond de débit
 
