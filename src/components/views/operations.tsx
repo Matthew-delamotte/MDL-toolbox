@@ -128,11 +128,17 @@ export function InboxView() {
                 </span>
               )}
             </div>
-            {message.dryRun && message.direction === "OUTBOUND" && (
-              <div className="info-box">
-Message en mode simulation · aucun email réel envoyé
-              </div>
-            )}
+            {/* On an unsent draft the stored flag is a prediction made when it was written, not a
+                fact: after DRY_RUN is turned off it would still claim simulation while approving
+                the draft sends a real email. Only a message that has left carries its own truth. */}
+            {message.direction === "OUTBOUND" &&
+              (message.sentAt ? message.dryRun : data.settings.dryRun) && (
+                <div className="info-box">
+                  {message.sentAt
+                    ? "Message simulé · aucun email réel n’est parti"
+                    : "Mode simulation · valider ce brouillon n’enverra aucun email réel"}
+                </div>
+              )}
             <div className="email-body">{message.body}</div>
             {message.error && <div className="error-box">{message.error}</div>}
             <div className="message-actions">
