@@ -20,6 +20,17 @@ describe('company naming', () => {
     expect(companyNameFrom('', 'lulli-sur-la-toile.com')).toBe('Lulli Sur La Toile');
     expect(companyNameFrom('Accueil', 'atelier-colis.fr')).toBe('Atelier Colis');
   });
+  // Observed on a real prospect: the page title named the sector, never the company.
+  it('falls back to the domain when the title names only a category', () => {
+    expect(companyNameFrom('Shopify & E-commerce Agency', 'pikka.fr')).toBe('Pikka');
+    expect(companyNameFrom('Agence digitale', 'maukau.com')).toBe('Maukau');
+    expect(companyNameFrom('Solutions e-commerce France', 'artich.io')).toBe('Artich');
+  });
+  it('keeps a name that carries a real word of its own', () => {
+    expect(companyNameFrom('Dedi Agency', 'dedi-agency.com')).toBe('Dedi Agency');
+    expect(companyNameFrom('Digital Unicorn', 'digitalunicorn.fr')).toBe('Digital Unicorn');
+    expect(companyNameFrom('Webqam', 'webqam.fr')).toBe('Webqam');
+  });
   it('keeps a real company name', () => {
     expect(companyNameFrom('Lulli sur la Toile - Concept Store Mode & Lifestyle', 'lulli-sur-la-toile.com')).toBe('Lulli sur la Toile');
     expect(companyNameFrom('Made By Extreme Ltd - Shopify Agency', 'madebyextreme.com')).toBe('Made By Extreme Ltd');

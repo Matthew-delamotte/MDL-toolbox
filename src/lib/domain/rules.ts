@@ -88,11 +88,20 @@ export function domainLabel(domain: string): string {
   if (!words.length) return domain;
   return words.map(word => word.length <= 4 && !/[aeiouy]/i.test(word.replace(/\d/g, "")) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }
+/**
+ * "Shopify & E-commerce Agency" is what a page is called, not what a company is called. A title
+ * built only from sector words and platform names identifies nobody, and the domain does.
+ */
+const GENERIC_WORD = /^(agence|agency|studio|atelier|cabinet|groupe|group|societe|company|conseil|consulting|digital|digitale|web|ecommerce|e|commerce|marketing|solutions?|services?|expert|experts|expertise|specialiste|partner|partners|france|paris|lyon|shopify|prestashop|woocommerce|wordpress|magento|saas|the|and|et|de|du|des|la|le|les|pour|en)$/i;
+
 export function companyNameFrom(title: string, domain: string): string {
   const head = (title || "").split(/ [|–—•·:] | - /)[0].trim().replace(/\s+/g, " ");
   const words = head ? head.split(" ") : [];
+  // "&" and other punctuation carry no identity either way: judge on the actual words.
+  const letters = words.map(word => foldAccents(word).replace(/[^\p{L}]/gu, "")).filter(Boolean);
+  const anonymous = letters.length > 0 && letters.every(word => GENERIC_WORD.test(word));
   const descriptive = !head || head.length > 48 || words.length > 5 || head.includes(",") || DESCRIPTIVE_TITLE.test(foldAccents(head));
-  return descriptive ? domainLabel(domain) : head.slice(0, 120);
+  return descriptive || anonymous ? domainLabel(domain) : head.slice(0, 120);
 }
 
 export function countryLabel(value?: string | null): string {
