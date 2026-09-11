@@ -123,23 +123,43 @@ articles sur ce problème. Le ciblage est modifiable depuis la fiche campagne.
 ## Rédaction des messages
 
 Le corps de l'email était un gabarit figé dans le code : l'IA ne remplissait qu'un bout de phrase et
-tous les prospects recevaient les quatre mêmes phrases. C'est exactement ce qui fait reconnaître un
-envoi automatique. Le modèle rédige maintenant l'objet et les paragraphes à partir des faits relevés
-sur l'entreprise.
+tous les prospects recevaient les quatre mêmes phrases. Le modèle rédige maintenant l'objet et les
+paragraphes à partir des faits relevés sur l'entreprise.
 
-Ce qui reste déterministe, donc indépendant du modèle : l'accueil, la signature et la ligne de
-désinscription. La conformité ne dépend jamais d'une sortie probabiliste.
+Trois partis pris commandent la forme, et chacun est vérifié sur le texte écrit, pas seulement
+demandé dans la consigne — un modèle lâche ces contraintes en premier.
 
-Trois contrôles s'appliquent au texte écrit, dans `src/lib/providers/outreach.ts` :
+**Matthew travaille seul, et c'est l'argument.** « nous », « notre équipe », « chez MDL Advisory on »
+le transforment en agence : c'est faux, et c'est le signe le plus visible d'un envoi de masse. Le
+message est écrit à la première personne du singulier. Le seul « on » admis est celui qui désigne
+Matthew et son interlocuteur ensemble. Ce que le lecteur y gagne est dit une fois, sans emphase :
+il parle à la personne qui construit l'outil, et l'outil épouse sa façon de faire.
+
+**Le message ne diagnostique pas.** Affirmer un problème que personne n'a décrit — « quand le volume
+augmente, le suivi devient complexe » — trahit une IA qui devine. Le deuxième paragraphe est une
+vraie question sur leur façon de travailler, avec deux réponses plausibles pour qu'on puisse
+répondre en trois mots.
+
+**Le message se termine sur une invitation.** Un email qui finit sur ce que fait l'expéditeur ne
+donne aucune raison de répondre ; le modèle sacrifiait cette ligne pour tenir sous la limite.
 
 | Contrôle | Effet |
 | --- | --- |
 | `outreachIssues` | Un prix, un délai chiffré, une garantie ou un lien fait basculer sur le gabarit de repli. |
-| `styleIssues` | Les tics de registre conseil — « ce type de », « permettrait de », « n'hésitez pas » — sont cités au modèle pour une réécriture. |
-| `revisionNote` | Un brouillon trop long déclenche la même passe unique de réécriture, conservée seulement si elle améliore le texte. |
+| `teamVoiceIssues` | « nous », « notre », « on conçoit » : réécriture demandée. |
+| `diagnosisIssues` | Toute affirmation sur leurs difficultés : réécriture demandée. |
+| `styleIssues` | Tics de registre conseil — « ce type de », « permettrait de », « n'hésitez pas ». |
+| `missingClosingAsk` | Dernier paragraphe sans invitation à répondre. |
+| `mergeSplitSentences` | Recolle une phrase que le modèle a coupée entre deux paragraphes. |
+
+`revisionNote` réunit ces constats en une seule consigne de réécriture, citant les formules
+fautives. Deux passes au maximum, chacune conservée seulement si `draftFaults` diminue.
 
 Longueurs visées : 110 mots au premier contact, 70 à la relance, 45 au dernier message. La séquence
-est jour 0, jour 3 et jour 7 ; chaque message doit se tenir seul et apporter un angle nouveau.
+est jour 0, jour 3 et jour 7 ; chaque message se tient seul et apporte un angle nouveau.
+
+Restent déterministes, donc indépendants du modèle : l'accueil, la signature et la ligne de
+désinscription. La conformité ne dépend jamais d'une sortie probabiliste.
 
 Pas d'images ni de HTML : dans un premier message froid, une image est un signal de campagne, pèse
 sur la délivrabilité et se voit immédiatement. La mise en forme passe par des paragraphes courts et
