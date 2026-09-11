@@ -196,6 +196,7 @@ export function revisionNote(rawParagraphs: string[], step: number): string | nu
   const diagnosis = diagnosisIssues(text);
   if (diagnosis.length) notes.push(`It claims to know their difficulties: ${diagnosis.map(t => `"${t}"`).join(", ")}. You do not know that. Replace the claim with a question about how they actually handle it today.`);
   if (step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"))) notes.push("It never asks them anything before the closing line. The second paragraph must be a real question about how they work today, ending in a question mark.");
+  if (step === 0 && paragraphs.length > 3) notes.push(`It runs to ${paragraphs.length} paragraphs instead of three: one observation, one question, one on what you build and the closing. Merge or cut, do not add a fourth.`);
   if (missingClosingAsk(paragraphs)) notes.push("It ends on what you do, with nothing for the reader to answer. The last sentence must invite a reply in a warm, ordinary way - tell them that a line describing how they work today is enough, and that you will say straight whether there is anything worth building.");
   const tics = styleIssues(text);
   if (tics.length) notes.push(`It uses wording that is banned because it reads as consulting boilerplate: ${tics.map(t => `"${t}"`).join(", ")}. Say the same thing the way someone would say it out loud.`);
@@ -209,8 +210,25 @@ export function draftFaults(rawParagraphs: string[], step: number): number {
   const paragraphs = mergeSplitSentences(rawParagraphs);
   const text = paragraphs.join(" ");
   const missingQuestion = step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?")) ? 1 : 0;
+  const extraParagraphs = step === 0 ? Math.max(0, paragraphs.length - 3) : 0;
   return teamVoiceIssues(text).length * 2 + diagnosisIssues(text).length * 2 + soloClaims(text).length * 2
-    + styleIssues(text).length + casualIssues(text).length + missingQuestion * 2 + (missingClosingAsk(paragraphs) ? 2 : 0);
+    + styleIssues(text).length + casualIssues(text).length + missingQuestion * 2
+    + (missingClosingAsk(paragraphs) ? 2 : 0) + extraParagraphs;
+}
+
+/**
+ * Faults worth discarding a personalised draft over. A residual consulting tic is tolerable; an
+ * email that speaks for a company, diagnoses a problem, asks nothing or rambles past the limit is
+ * the exact thing Matthew objected to, and the plain template beats it.
+ */
+export function isUnsendable(rawParagraphs: string[], step: number): boolean {
+  const paragraphs = mergeSplitSentences(rawParagraphs);
+  const text = paragraphs.join(" ");
+  if (teamVoiceIssues(text).length || soloClaims(text).length || diagnosisIssues(text).length) return true;
+  if (missingClosingAsk(paragraphs)) return true;
+  if (step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"))) return true;
+  if (step === 0 && paragraphs.length > 3) return true;
+  return wordCount(text) > MAX_WORDS[Math.min(step, 2)] * 1.4;
 }
 
 /** Cosmetic tics a model slips in: strip them rather than discard an otherwise good message. */

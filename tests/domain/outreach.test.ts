@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, isUnsendable, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
 const settings: DraftSettings = {
@@ -230,5 +230,35 @@ describe("closing", () => {
       "Dites-moi où se situe vraiment la friction et je vous dirai ce que je ferais.",
     ];
     for (const closing of closings) expect(missingClosingAsk([closing])).toBe(false);
+  });
+});
+
+describe("unsendable drafts fall back", () => {
+  const clean = [
+    "J'ai vu que vous expédiez pour des marques e-commerce.",
+    "Comment suivez-vous les anomalies : dans le WMS, ou dans un fichier à côté ?",
+    "Je conçois des outils internes sur mesure. Sur ce suivi j'interviens sur quelques jours, et si la friction est ailleurs on part sur autre chose.",
+  ];
+  it("accepts a draft that meets the shape", () => {
+    expect(isUnsendable(clean, 0)).toBe(false);
+    expect(revisionNote(clean, 0)).toBeNull();
+  });
+  it("rejects the faults Matthew objected to", () => {
+    expect(isUnsendable([clean[0], clean[1], "Nous construisons des outils internes. Dites-moi."], 0)).toBe(true);
+    expect(isUnsendable([clean[0], clean[1], "Je travaille seul. Dites-moi."], 0)).toBe(true);
+    expect(isUnsendable([clean[0], "Quand le volume augmente, ça devient complexe.", clean[2]], 0)).toBe(true);
+    expect(isUnsendable([clean[0], "Un tableau de bord regrouperait vos données.", clean[2]], 0)).toBe(true);
+    expect(isUnsendable([clean[0], clean[1], "Je conçois des outils internes sur mesure."], 0)).toBe(true);
+  });
+  // Observed on a real draft: four paragraphs and 170 words, well past the limit.
+  it("rejects a rambling draft", () => {
+    expect(isUnsendable([...clean, "Et un quatrième paragraphe. Dites-moi."], 0)).toBe(true);
+    const long = [clean[0], clean[1], Array.from({ length: 160 }, () => "mot").join(" ") + " Dites-moi."];
+    expect(isUnsendable(long, 0)).toBe(true);
+  });
+  it("tolerates a residual consulting tic rather than losing the personalisation", () => {
+    const withTic = [clean[0], clean[1], "Je conçois ce type d'outil sur mesure. Dites-moi comment vous faites."];
+    expect(revisionNote(withTic, 0)).toContain("ce type d");
+    expect(isUnsendable(withTic, 0)).toBe(false);
   });
 });

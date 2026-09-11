@@ -4,7 +4,7 @@ import { z } from "zod";
 import { classifyReplyRules } from "../domain/replies";
 import { languageFor, normalizeScore, detectRisks, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { classificationSchema, draftSchema, offerSchema, outreachSchema, researchSchema, scoreSchema, validateOffer } from "../domain/schemas";
-import { assembleOutreach, draftFaults, fallbackOutreach, outreachInstruction, outreachIssues, revisionNote, tidyOutreach, wordCount } from "./outreach";
+import { assembleOutreach, draftFaults, fallbackOutreach, isUnsendable, outreachInstruction, outreachIssues, revisionNote, tidyOutreach, wordCount } from "./outreach";
 import { consumeBudget, isBudgetError } from "./budget";
 import { tavilySearch } from "./sources";
 import type { AdaptiveOffer, AIService, DraftResult, DraftSettings, LeadContext, OfferTemplateInput, ReplyClassification, ResearchFact, ScoreResult } from "./types";
@@ -56,21 +56,25 @@ export class OpenAIService implements AIService {
       offer: { solution: offer.proposedSolution, deliverables: offer.deliverables },
       sender: { name: settings.senderName, company: settings.companyName },
     };
-    let result = await this.structured(outreachSchema, "outreach_email", outreachInstruction(language, step, context.company.domain), payload);
+    const instruction = outreachInstruction(language, step, context.company.domain);
     // Voice, absence of diagnosis, register and length are the constraints a model drops first, and
     // each of them is what a prospect recognises as an automated send. Up to two revision passes
-    // cost a request each; the alternative is sending the version that gives the game away.
+    // cost a request each; every draft is kept so the best one survives, because a rewrite asked to
+    // fix one fault regularly introduces another.
+    let best = await this.structured(outreachSchema, "outreach_email", instruction, payload);
     for (let attempt = 0; attempt < 2; attempt++) {
-      const note = revisionNote(result.paragraphs, step);
+      const note = revisionNote(best.paragraphs, step);
       if (!note) break;
-      const revised = await this.structured(outreachSchema, "outreach_email", `${outreachInstruction(language, step, context.company.domain)}\n\n${note}`, { ...payload, previousDraft: result.paragraphs });
-      // A rewrite is kept only when it moves closer to the target: a second pass can make it worse,
-      // and a shorter draft that reintroduced boilerplate is not an improvement.
-      const before = draftFaults(result.paragraphs, step), after = draftFaults(revised.paragraphs, step);
-      const shorter = wordCount(revised.paragraphs.join(" ")) < wordCount(result.paragraphs.join(" "));
-      if (after < before || (after === before && shorter)) result = revised;
+      const revised = await this.structured(outreachSchema, "outreach_email", `${instruction}\n\n${note}`, { ...payload, previousDraft: best.paragraphs });
+      const before = draftFaults(best.paragraphs, step), after = draftFaults(revised.paragraphs, step);
+      const shorter = wordCount(revised.paragraphs.join(" ")) < wordCount(best.paragraphs.join(" "));
+      if (after < before || (after === before && shorter)) best = revised;
       else break;
     }
+    // A draft that still speaks for a company, diagnoses, asks nothing or rambles is the exact
+    // thing that reads as automated. The plain template is worse copy but it is sendable.
+    if (isUnsendable(best.paragraphs, step)) return fallbackOutreach(context, offer, settings, step);
+    const result = best;
     const body = assembleOutreach(context, settings, language, result.paragraphs);
     // The signature legitimately carries an address and a site: only the written paragraphs are checked.
     const issues = outreachIssues(result.paragraphs.join(" "));
