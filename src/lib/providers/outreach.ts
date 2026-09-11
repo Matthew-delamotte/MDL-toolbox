@@ -80,6 +80,40 @@ export function wordCount(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+/**
+ * Consultant tics and sales filler. Listing them in the prompt is not enough - the model keeps a
+ * few - so the written copy is read back and the offending phrases are quoted to it for one
+ * rewrite. These are style, not safety: they never justify discarding a message on their own.
+ */
+const TICS: RegExp[] = [
+  /\bce (type|genre) d[e'’]/i,
+  /\bcela sugg[eè]re\b|\bsugg[eè]re une?\b/i,
+  /\bje pourrais imaginer\b|\bon envisagerait\b/i,
+  /\bpermettrait de\b|\bpermettant de\b/i,
+  /\bdans le cadre de\b|\ben s['’]appuyant sur\b|\bau sein de\b/i,
+  /\bprobl[eé]matique\b|\baccompagner\b|\bnotre expertise\b/i,
+  /\bn['’]h[eé]sitez pas\b|\bje me permets\b|\bj['’]esp[eè]re que ce message\b/i,
+  /\bcl[eé] en main\b|\bsolution innovante\b|\bsynergie\b|\bleader\b|\bincontournable\b/i,
+  /\bi hope this email finds you well\b|\bleverage\b|\bbest-in-class\b|\breach out\b/i,
+];
+
+export function styleIssues(text: string): string[] {
+  return TICS.map(pattern => text.match(pattern)?.[0]).filter((match): match is string => Boolean(match));
+}
+
+/** The single revision note handed back to the model, or null when the draft is already fine. */
+export function revisionNote(paragraphs: string[], step: number): string | null {
+  const text = paragraphs.join(" ");
+  const limit = MAX_WORDS[Math.min(step, 2)];
+  const words = wordCount(text);
+  const tics = styleIssues(text);
+  const notes: string[] = [];
+  if (words > limit * 1.25) notes.push(`It runs to ${words} words, over the ${limit}-word limit. Cut the padding: drop every sentence that only restates another, keep the concrete observation and the closing question.`);
+  if (tics.length) notes.push(`It uses wording that is banned because it reads as consulting boilerplate: ${tics.map(t => `"${t}"`).join(", ")}. Say the same thing the way someone would say it out loud.`);
+  if (!notes.length) return null;
+  return `Your previous draft must be rewritten. ${notes.join(" ")} Keep everything else: same observation, same idea, same language.`;
+}
+
 /** Cosmetic tics a model slips in: strip them rather than discard an otherwise good message. */
 export function tidyOutreach(text: string): string {
   return text

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { classifyReplyRules } from "../domain/replies";
 import { languageFor, normalizeScore, detectRisks, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { classificationSchema, draftSchema, offerSchema, outreachSchema, researchSchema, scoreSchema, validateOffer } from "../domain/schemas";
-import { assembleOutreach, fallbackOutreach, MAX_WORDS, outreachInstruction, outreachIssues, tidyOutreach, wordCount } from "./outreach";
+import { assembleOutreach, fallbackOutreach, outreachInstruction, outreachIssues, revisionNote, tidyOutreach, wordCount } from "./outreach";
 import { consumeBudget, isBudgetError } from "./budget";
 import { tavilySearch } from "./sources";
 import type { AdaptiveOffer, AIService, DraftResult, DraftSettings, LeadContext, OfferTemplateInput, ReplyClassification, ResearchFact, ScoreResult } from "./types";
@@ -57,11 +57,14 @@ export class OpenAIService implements AIService {
       sender: { name: settings.senderName, company: settings.companyName },
     };
     let result = await this.structured(outreachSchema, "outreach_email", outreachInstruction(language, step), payload);
-    // Length is the constraint a model ignores first, and a long cold email reads as a sequence.
-    // One compression pass costs a request; the alternative is sending the padded version.
-    const limit = MAX_WORDS[Math.min(step, 2)];
-    if (wordCount(result.paragraphs.join(" ")) > limit * 1.4) {
-      result = await this.structured(outreachSchema, "outreach_email", `${outreachInstruction(language, step)}\n\nYour previous draft ran to ${wordCount(result.paragraphs.join(" "))} words, well over the ${limit}-word limit. Rewrite it under the limit: cut the padding, keep the concrete observation and the question, drop every sentence that only restates another.`, { ...payload, previousDraft: result.paragraphs });
+    // Length and register are the constraints a model drops first, and a padded cold email full of
+    // consulting boilerplate is exactly what a prospect recognises as automated. One revision pass
+    // costs a request; the alternative is sending that version.
+    const note = revisionNote(result.paragraphs, step);
+    if (note) {
+      const revised = await this.structured(outreachSchema, "outreach_email", `${outreachInstruction(language, step)}\n\n${note}`, { ...payload, previousDraft: result.paragraphs });
+      // Keep the revision only if it actually improved: a second pass can make things worse.
+      if (!revisionNote(revised.paragraphs, step) || wordCount(revised.paragraphs.join(" ")) < wordCount(result.paragraphs.join(" "))) result = revised;
     }
     const body = assembleOutreach(context, settings, language, result.paragraphs);
     // The signature legitimately carries an address and a site: only the written paragraphs are checked.
