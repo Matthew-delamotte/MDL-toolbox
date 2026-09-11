@@ -164,10 +164,25 @@ donne aucune raison de répondre ; le modèle sacrifiait cette ligne pour tenir 
 `revisionNote` réunit ces constats en une seule consigne de réécriture, citant les formules
 fautives. Deux passes au maximum, chacune conservée seulement si `draftFaults` diminue.
 
-La formule de clôture — « si vous avez des points de friction, je peux construire avec vous l'outil
-qui les règle » — est imposée, donc proche d'un message à l'autre. C'est le passage reconnaissable si
-deux prospects comparent. L'observation d'ouverture et la question restent propres à chaque
-entreprise, et ce sont elles qui portent la personnalisation.
+Un contrôle qui constate sans pouvoir imposer ne sert à rien. Si le brouillon reste défaillant après
+les deux passes, `isUnsendable` le rejette et le gabarit prend le relais : parler au nom d'une
+entreprise, se dire seul, affirmer un problème, ne rien demander, dépasser largement la longueur ou
+déborder de trois paragraphes sont rédhibitoires. Un tic de registre résiduel reste toléré — il ne
+vaut pas de perdre la personnalisation.
+
+Le gabarit de repli doit donc être présentable : il ne coupe jamais un mot en deux, écarte une
+description scrapée sans ponctuation plutôt que de la tronquer, et ne recopie que la première
+proposition du descriptif d'offre.
+
+**La clôture porte l'offre.** Elle nomme en clair l'intervention que la famille retenue pour ce lead
+désigne — automatiser un processus, construire un outil métier, reprendre et fiabiliser les données —
+et laisse dans la même phrase la porte ouverte à un périmètre construit autour d'autre chose. La
+promesse commerciale tient : une friction précise, sur quelques jours. Jamais de prix, jamais un
+nombre de jours, jamais un nom d'offre.
+
+Sa formulation varie : cinq angles, choisis à partir du domaine de l'entreprise. Stable si on
+régénère un brouillon, différent d'une entreprise à l'autre, pour qu'une dernière phrase identique
+partout ne devienne pas elle-même le signal.
 
 Longueurs visées : 110 mots au premier contact, 70 à la relance, 45 au dernier message. La séquence
 est jour 0, jour 3 et jour 7 ; chaque message se tient seul et apporte un angle nouveau.
