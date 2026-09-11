@@ -56,6 +56,24 @@ describe("discovery keeps companies and drops publishers", () => {
     expect(looksLikeDirectory("https://3suisses.fr/", "3 Suisses")).toBe(false);
     expect(looksLikeDirectory("https://corlet.fr/", "Prestataire logistique e-commerce : entrepôt, stockage")).toBe(false);
   });
+  // Running the same campaign search twice returned the same first results, which deduplication
+  // then threw away: a spent credit and nothing added.
+  it("asks the search engine to skip the companies already in the workspace", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "test-secret");
+    const fetcher = vi.fn().mockResolvedValue(tavilyResponse([{ title: "Corlet", url: "https://corlet.fr/", content: "Prestataire logistique" }]));
+    vi.stubGlobal("fetch", fetcher);
+    await new TavilyLeadSourceAdapter().discover("PME logistique France", ["h2k.fr", "ebsesperance.fr"]);
+    const body = JSON.parse(fetcher.mock.calls[0][1].body);
+    expect(body.exclude_domains).toEqual(["h2k.fr", "ebsesperance.fr"]);
+    expect(body.max_results).toBeGreaterThan(8);
+  });
+  it("sends no exclusion list when nothing is known yet", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "test-secret");
+    const fetcher = vi.fn().mockResolvedValue(tavilyResponse([{ title: "Corlet", url: "https://corlet.fr/", content: "Prestataire" }]));
+    vi.stubGlobal("fetch", fetcher);
+    await new TavilyLeadSourceAdapter().discover("PME logistique France");
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).exclude_domains).toBeUndefined();
+  });
   it("drops job boards before they become prospects", async () => {
     vi.stubEnv("TAVILY_API_KEY", "test-secret");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(tavilyResponse([

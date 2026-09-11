@@ -52,10 +52,17 @@ export async function ingestOpportunities(items:RawOpportunity[], campaignId?:st
 export async function discover({query,campaignId}:{query:string;campaignId?:string}) {
   const source = await db.sourceConfig.findUnique({where:{name:'Tavily web discovery'}});
   if (source && !source.enabled) throw new Error('La recherche web est désactivée dans les sources.');
-  const items = await createLeadSourceAdapter().discover(query);
+  // Companies already in the workspace are excluded at the search itself, so a second run on the
+  // same campaign explores further instead of returning what deduplication will throw away.
+  const known = await db.company.findMany({select:{domain:true},orderBy:{createdAt:'desc'},take:60});
+  const items = await createLeadSourceAdapter().discover(query,known.map(c=>c.domain));
   const leads = await ingestOpportunities(items,campaignId);
-  await audit('DISCOVERY_COMPLETED',`La recherche a retourné ${leads.length} lead(s)`,undefined,{query,campaignId});
   if (source) await db.sourceConfig.update({where:{id:source.id},data:{lastRunAt:new Date()}});
+  if (!items.length) {
+    await audit('DISCOVERY_EMPTY',`Aucune entreprise nouvelle pour « ${query} »`,undefined,{query,campaignId},'WARN');
+    throw new Error(`Aucune entreprise nouvelle sur cette requête : les résultats restants sont déjà dans votre base, ou ce sont des articles et des annuaires. Modifiez le ciblage de la campagne pour explorer un autre segment.`);
+  }
+  await audit('DISCOVERY_COMPLETED',`${items.length} nouvelle(s) entreprise(s) ajoutée(s)`,undefined,{query,campaignId});
   return leads;
 }
 export async function importCsv(csv:string) {

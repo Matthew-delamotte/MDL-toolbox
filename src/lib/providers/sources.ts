@@ -6,11 +6,12 @@ import { consumeBudget, isBudgetError } from "./budget";
 import type { ContactInput, LeadSourceAdapter, RawOpportunity } from "./types";
 
 const searchSchema = z.object({ results: z.array(z.object({ title: z.string(), url: z.string(), content: z.string().default(""), raw_content: z.string().nullable().optional() })) });
-export async function tavilySearch(query: string, domains?: string[]) {
+export async function tavilySearch(query: string, domains?: string[], options?: { exclude?: string[]; maxResults?: number }) {
   if (!process.env.TAVILY_API_KEY) return [];
   // One Tavily credit per call: reserve it before spending it.
   await consumeBudget("tavily.search");
-  const response = await fetch("https://api.tavily.com/search", { method: "POST", headers: { Authorization: `Bearer ${process.env.TAVILY_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ query, max_results: 8, search_depth: "basic", include_raw_content: "text", ...(domains ? { include_domains: domains } : {}) }), signal: AbortSignal.timeout(30000) });
+  const exclude = (options?.exclude ?? []).slice(0, 60);
+  const response = await fetch("https://api.tavily.com/search", { method: "POST", headers: { Authorization: `Bearer ${process.env.TAVILY_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify({ query, max_results: options?.maxResults ?? 8, search_depth: "basic", include_raw_content: "text", ...(domains ? { include_domains: domains } : {}), ...(exclude.length ? { exclude_domains: exclude } : {}) }), signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new Error(`La recherche Tavily a échoué (${response.status}).`);
   return searchSchema.parse(await response.json()).results;
 }
@@ -31,10 +32,12 @@ export function looksLikeDirectory(url: string, title: string) {
 const stripMarkup = (value: string) => value.replace(/<!--[\s\S]*?-->/g, " ").replace(/<[^>]{0,300}>/g, " ");
 
 export class TavilyLeadSourceAdapter implements LeadSourceAdapter {
-  async discover(query: string): Promise<RawOpportunity[]> {
+  async discover(query: string, exclude: string[] = []): Promise<RawOpportunity[]> {
     if (!query.trim()) throw new Error("Saisissez une requête de recherche.");
     if (!process.env.TAVILY_API_KEY) return developmentDiscovery(query);
-    const results = await tavilySearch(query);
+    // Without this, running the same campaign search twice returns the same first results and the
+    // deduplication silently drops every one of them: a spent credit and nothing to show for it.
+    const results = await tavilySearch(query, undefined, { exclude, maxResults: 12 });
     const seen = new Set<string>();
     const companies = results.flatMap(result => {
       let domain: string;

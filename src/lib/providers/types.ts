@@ -21,7 +21,7 @@ export interface AIService {
   classifyReply(body: string): Promise<ReplyClassification>;
   draftReply(context: LeadContext, incoming: string, classification: ReplyClassification, settings: DraftSettings): Promise<DraftResult>;
 }
-export interface LeadSourceAdapter { discover(query: string): Promise<RawOpportunity[]> }
+export interface LeadSourceAdapter { discover(query: string, exclude?: string[]): Promise<RawOpportunity[]> }
 export interface EmailSendInput { id: string; to: string; from: string; replyTo?: string; subject: string; body: string }
 export interface EmailSendResult { id: string; dryRun: boolean }
 export interface EmailProvider { send(input: EmailSendInput): Promise<EmailSendResult> }
