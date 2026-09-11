@@ -169,6 +169,7 @@ donne aucune raison de répondre ; le modèle sacrifiait cette ligne pour tenir 
 | `styleIssues` | Tics de registre conseil — « ce type de », « permettrait de », « n'hésitez pas ». |
 | `missingClosingAsk` | Dernier paragraphe sans invitation à répondre. |
 | `mergeSplitSentences` | Recolle une phrase que le modèle a coupée entre deux paragraphes. |
+| `isUnsendable` | Défaut rédhibitoire après deux réécritures : bascule sur le gabarit. |
 
 `revisionNote` réunit ces constats en une seule consigne de réécriture, citant les formules
 fautives. Deux passes au maximum, chacune conservée seulement si `draftFaults` diminue.
@@ -199,9 +200,34 @@ est jour 0, jour 3 et jour 7 ; chaque message se tient seul et apporte un angle 
 Restent déterministes, donc indépendants du modèle : l'accueil, la signature et la ligne de
 désinscription. La conformité ne dépend jamais d'une sortie probabiliste.
 
+**Une formule de politesse au-dessus de la signature**, variable selon l'entreprise : « Dans
+l'attente de votre retour », « Au plaisir d'échanger avec vous ». Elle est ajoutée après le modèle,
+donc toujours présente et correctement orthographiée, et ne consomme pas de mots sur la limite.
+
+**« Nous » est autorisé quand il désigne Matthew et son interlocuteur** — « nous pouvons en
+discuter ». Le contrôle bannit le présent d'entreprise, « nous concevons », « notre expertise », pas
+le pronom.
+
 Pas d'images ni de HTML : dans un premier message froid, une image est un signal de campagne, pèse
 sur la délivrabilité et se voit immédiatement. La mise en forme passe par des paragraphes courts et
 une signature propre.
+
+## Langue du message
+
+Le corps, la formule de politesse et la ligne de désinscription suivent une seule règle,
+`outreachLanguage` : le pays de l'entreprise s'il est établi, sinon le pays de la campagne, sinon la
+langue enregistrée sur le contact.
+
+Deux défauts corrigés le 11 septembre 2026, après relecture des premiers envois réels :
+
+- Les trois emails français sont partis avec la ligne de désinscription **en anglais**. Hunter ne
+  renvoie pas de langue, le contact gardait la valeur par défaut « en », et l'envoi déduisait le pied
+  de page du seul contact alors que le corps suivait le pays de l'entreprise.
+- Une entreprise française sur un domaine en `.com` n'a pas de pays établi : un prospect trouvé par
+  la campagne France a reçu un message en anglais, avec le descriptif d'offre français recollé
+  dedans. Le pays de la campagne tranche désormais. C'est un choix de présentation et non une
+  affirmation : le pays de l'entreprise reste inconnu, donc le ciblage exige toujours une validation
+  humaine.
 
 ## Ce qu'il reste avant les recherches automatiques
 
