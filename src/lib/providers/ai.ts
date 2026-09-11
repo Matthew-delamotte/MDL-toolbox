@@ -73,13 +73,13 @@ export class OpenAIService implements AIService {
     }
     // A draft that still speaks for a company, diagnoses, asks nothing or rambles is the exact
     // thing that reads as automated. The plain template is worse copy but it is sendable.
-    if (isUnsendable(best.paragraphs, step)) return fallbackOutreach(context, offer, settings, step);
+    if (isUnsendable(best.paragraphs, step)) return { ...fallbackOutreach(context, offer, settings, step), fallbackReason: revisionNote(best.paragraphs, step) ?? "brouillon non conforme" };
     const result = best;
     const body = assembleOutreach(context, settings, language, result.paragraphs);
     // The signature legitimately carries an address and a site: only the written paragraphs are checked.
     const issues = outreachIssues(result.paragraphs.join(" "));
     // A disqualifying sentence is not worth editing around: fall back to the template instead.
-    if (issues.length) return fallbackOutreach(context, offer, settings, step);
+    if (issues.length) return { ...fallbackOutreach(context, offer, settings, step), fallbackReason: `contenu interdit : ${issues.join(", ")}` };
     return draftSchema.parse({ subject: tidyOutreach(result.subject).slice(0, 180), body, language });
   }
   async classifyReply(body: string): Promise<ReplyClassification> {

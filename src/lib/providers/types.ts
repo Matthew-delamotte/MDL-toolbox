@@ -8,7 +8,7 @@ export interface ScoreResult { fitScore: number; valueScore: number; deliverabil
 export interface OfferTemplateInput { id: string; name: string; slug: string; description: string; minPrice: number; maxPrice: number; typicalDeliveryDays: string; enabled: boolean }
 export interface AdaptiveOffer { offerTemplateId: string; title: string; problem: string; proposedSolution: string; deliverables: string[]; estimatedPriceMin: number; estimatedPriceMax: number; estimatedDuration: string; rationale: string }
 export interface DraftSettings { senderName: string; companyName: string; signature: string; calendarUrl?: string }
-export interface DraftResult { subject: string; body: string; language: Language }
+export interface DraftResult { subject: string; body: string; language: Language; fallbackReason?: string }
 export const REPLY_CATEGORIES = ["POSITIVE", "QUESTION", "NOT_NOW", "NOT_INTERESTED", "REFERRAL", "MEETING_REQUEST", "NEGOTIATION", "UNSUBSCRIBE", "OUT_OF_OFFICE", "UNKNOWN"] as const;
 export type ReplyCategory = typeof REPLY_CATEGORIES[number];
 export interface ReplyClassification { category: ReplyCategory; confidence: number; language: Language; reasoning: string; returnDate: string | null; requiresHuman: boolean }

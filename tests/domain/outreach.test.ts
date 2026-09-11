@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, isUnsendable, mergeSplitSentences, missingClosingAsk, optOut, outreachInstruction, outreachIssues, outreachLanguage, revisionNote, signOff, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, hasOptOut, isUnsendable, mergeSplitSentences, missingClosingAsk, optOut, outreachInstruction, outreachIssues, outreachLanguage, revisionNote, signOff, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import { languageFor } from "../../src/lib/domain";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
@@ -35,7 +35,19 @@ describe("outreach assembly", () => {
     const body = assembleOutreach(context, settings, "fr", ["Premier paragraphe.", "Second paragraphe."]);
     expect(body.startsWith("Bonjour Robert,")).toBe(true);
     expect(body).toContain("matthew.delamotte@mdl-advisory.com");
-    expect(body.trimEnd().endsWith("je ne vous recontacterai plus.")).toBe(true);
+    // The way out is the last sentence of the message, not a block under the signature.
+    expect(hasOptOut(body, "fr")).toBe(true);
+    expect(body.split("\n\n")[1]).toContain("Premier paragraphe.");
+    expect(body.trimEnd().endsWith("mdl-advisory.com")).toBe(true);
+  });
+  it("never leaves the reader without a way out, whatever the paragraphs say", () => {
+    for (const language of ["fr", "en"] as const) {
+      expect(hasOptOut(assembleOutreach(context, settings, language, ["Une observation.", "Une clôture."]), language)).toBe(true);
+    }
+  });
+  it("does not repeat it when the paragraphs already carry one", () => {
+    const already = assembleOutreach(context, settings, "fr", ["Une observation.", `Une clôture. ${optOut("fr", "h2k.fr")}`]);
+    expect(already.split("dites-le moi").length - 1).toBeLessThanOrEqual(1);
   });
   it("greets without a name rather than inventing one", () => {
     expect(greeting({ ...context, contact: null } as unknown as LeadContext, "fr")).toBe("Bonjour,");
@@ -358,8 +370,19 @@ describe("opt-out language", () => {
   // out with an English opt-out line. The country decides, exactly as it does for the body.
   it("follows the company country even when the contact record says en", () => {
     expect(languageFor("France", "en")).toBe("fr");
-    expect(optOut(languageFor("France", "en"))).toContain("ne vous recontacterai plus");
-    expect(optOut(languageFor("United Kingdom", "en"))).toContain("won't contact you again");
+    expect(hasOptOut(optOut(languageFor("France", "en"), "h2k.fr"), "fr")).toBe(true);
+    expect(hasOptOut(optOut(languageFor("United Kingdom", "en"), "h2k.fr"), "en")).toBe(true);
+  });
+  it("varies the wording between companies", () => {
+    const all = new Set(["h2k.fr", "ebsesperance.fr", "corlet.fr", "ezytail.com", "klarwerk.de"].map(d => optOut("fr", d)));
+    expect(all.size).toBeGreaterThan(1);
+    expect(optOut("fr", "h2k.fr")).toBe(optOut("fr", "h2k.fr"));
+  });
+  it("no longer announces itself as a mailing footer", () => {
+    for (const domain of ["h2k.fr", "ebsesperance.fr", "corlet.fr", "ezytail.com"]) {
+      expect(optOut("fr", domain)).not.toContain("Pas pertinent");
+      expect(optOut("fr", domain)).not.toContain("« non »");
+    }
   });
 });
 

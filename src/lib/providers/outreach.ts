@@ -292,10 +292,34 @@ export function greeting(context: LeadContext, language: "fr" | "en"): string {
   return first ? `${hello} ${first},` : `${hello},`;
 }
 
-export function optOut(language: "fr" | "en"): string {
-  return language === "fr"
-    ? "Pas pertinent ? Répondez simplement « non » et je ne vous recontacterai plus."
-    : "Not relevant? Just reply 'no' and I won't contact you again.";
+/**
+ * B2B prospecting in France needs no prior consent, but the recipient must be able to object
+ * simply in every message. Sat under the signature as a fixed block it read as a mailing footer,
+ * which is exactly what it announced. It is now the last sentence of the message itself, varied
+ * per company, so it does the same job in the voice of the person writing.
+ */
+const OPT_OUT_FR = [
+  "Si ce n'est pas d'actualité chez vous, dites-le moi et j'en resterai là.",
+  "Si le sujet n'est pas le vôtre, dites-le moi, je n'insisterai pas.",
+  "Si vous préférez que je ne revienne pas vers vous, dites-le moi simplement.",
+  "Et si ce n'est pas le moment, dites-le moi : je m'arrête là.",
+];
+
+const OPT_OUT_EN = [
+  "If this is not on your plate right now, tell me and I will leave it there.",
+  "If it is not your subject, say so and I will not follow up.",
+  "If you would rather I did not come back to you, just tell me.",
+  "And if the timing is wrong, tell me and I will stop there.",
+];
+
+export function optOut(language: "fr" | "en", seed = ""): string {
+  return pick(language === "fr" ? OPT_OUT_FR : OPT_OUT_EN, seed);
+}
+
+/** True when the message already gives the reader a way out, in any of its wordings. */
+export function hasOptOut(text: string, language: "fr" | "en"): boolean {
+  const list = language === "fr" ? OPT_OUT_FR : OPT_OUT_EN;
+  return list.some(line => text.includes(line)) || /ne vous recontacterai plus|won't contact you again/i.test(text);
 }
 
 export function signatureFor(settings: DraftSettings): string {
@@ -318,9 +342,12 @@ export function mergeSplitSentences(paragraphs: string[]): string[] {
 }
 
 export function assembleOutreach(context: LeadContext, settings: DraftSettings, language: "fr" | "en", paragraphs: string[]): string {
-  const body = mergeSplitSentences(paragraphs).join("\n\n");
-  const courtesy = signOff(language, context.company.domain || context.company.name || "");
-  return `${greeting(context, language)}\n\n${body}\n\n${courtesy}\n${signatureFor(settings)}\n\n${optOut(language)}`;
+  const seed = context.company.domain || context.company.name || "";
+  const merged = mergeSplitSentences(paragraphs);
+  // The way out belongs to the last sentence of the message, not to a footer under the signature.
+  const last = merged.length - 1;
+  if (last >= 0 && !hasOptOut(merged[last], language)) merged[last] = `${merged[last]} ${optOut(language, seed)}`;
+  return `${greeting(context, language)}\n\n${merged.join("\n\n")}\n\n${signOff(language, seed)}\n${signatureFor(settings)}`;
 }
 
 /**
@@ -349,6 +376,13 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
   const sentence = firstSentence(context.company.description || "", 200);
   const length = sentence ? sentence.split(/\s+/).filter(Boolean).length : 0;
   const activity = length >= 5 && length <= 22 && !/[:;,]$/.test(sentence) ? sentence : "";
+  // Repeating the site's own strapline is flat. The research holds the concrete detail - a tool
+  // they run, a fact about the business - and that is what shows someone actually looked.
+  const facts = (context.research || []).filter(f => f.status !== "unknown" && f.value && f.value !== UNKNOWN);
+  const tool = facts.find(f => /^technolog|^crm$|^ecommerce$|^automation$/i.test(f.field));
+  const business = facts.find(f => /^business$/i.test(f.field));
+  const toolName = tool ? firstSentence(tool.value, 8) : "";
+  const businessLine = business ? firstSentence(business.value, 20) : "";
   // The offer is an internal document, always written in French. Splicing it verbatim into an
   // English message produced a half-French email; the model can translate it, the template cannot.
   const intervention = fr ? firstSentence(offer.proposedSolution || "", 16) : "";
@@ -371,12 +405,16 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
     // "de Endurancelogistique" reads as a machine; French elides before a vowel.
     const of = /^[aeiouyàâäéèêëîïôöùûü]/i.test(company) ? `d'${company}` : `de ${company}`;
     const sector = (context.company.industry || "").trim();
+    const lower = (value: string) => `${value.charAt(0).toLowerCase()}${value.slice(1)}`;
+    let opening: string;
+    if (toolName) opening = fr ? `J'ai vu que vous travaillez avec ${toolName}.` : `I saw that you work with ${toolName}.`;
+    else if (businessLine) opening = fr ? `J'ai vu que ${lower(businessLine)}.` : `I saw that ${lower(businessLine)}.`;
+    else if (activity) opening = fr ? `J'ai vu ce que fait ${company} : ${lower(activity)}.` : `I had a look at what ${company} does: ${lower(activity)}.`;
+    else opening = fr
+      ? `J'ai regardé l'activité ${of}${sector && sector !== UNKNOWN ? `, ${lower(sector)}` : ""}.`
+      : `I had a look at what ${company} does${sector && sector !== UNKNOWN ? `, in ${lower(sector)}` : ""}.`;
     paragraphs = [
-      activity
-        ? (fr ? `J'ai vu ce que fait ${company} : ${activity.charAt(0).toLowerCase()}${activity.slice(1)}.` : `I had a look at what ${company} does: ${activity.charAt(0).toLowerCase()}${activity.slice(1)}.`)
-        : (fr
-            ? `J'ai regardé l'activité ${of}${sector && sector !== UNKNOWN ? `, ${sector.charAt(0).toLowerCase()}${sector.slice(1)}` : ""}.`
-            : `I had a look at what ${company} does${sector && sector !== UNKNOWN ? `, in ${sector.charAt(0).toLowerCase()}${sector.slice(1)}` : ""}.`),
+      opening,
       fr
         ? "Comment suivez-vous cette activité aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
         : "How do you track that today: inside your business tools, or in a file someone maintains on the side?",
