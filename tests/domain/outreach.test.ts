@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, diagnosisIssues, draftFaults, fallbackOutreach, greeting, outreachInstruction, outreachIssues, revisionNote, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, diagnosisIssues, draftFaults, fallbackOutreach, greeting, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
 const settings: DraftSettings = {
@@ -77,7 +77,7 @@ describe("register enforcement", () => {
   it("asks for a rewrite that quotes the offending wording back", () => {
     const note = revisionNote(["Ce type de flux produit des données dispersées."], 0);
     expect(note).toContain("Ce type de");
-    expect(revisionNote(["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même."], 0)).toBeNull();
+    expect(revisionNote(["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même. Dites-moi comment ça se passe chez vous."], 0)).toBeNull();
   });
   it("asks for a rewrite when the draft runs long", () => {
     const long = [Array.from({ length: 150 }, () => "mot").join(" "), "Et vous, comment faites-vous ?", "Fin."];
@@ -119,12 +119,12 @@ describe("no diagnosis", () => {
   it("requires a question before the closing paragraph", () => {
     const asserted = ["Vous expédiez pour des marques.", "Un tableau de bord regrouperait vos données.", "Je travaille seul."];
     expect(revisionNote(asserted, 0)).toContain("must be a real question");
-    const asked = ["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même."];
+    const asked = ["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même. Dites-moi comment ça se passe chez vous."];
     expect(revisionNote(asked, 0)).toBeNull();
   });
   it("scores a draft so a rewrite is kept only when it moves closer", () => {
     const bad = ["Vous expédiez.", "Quand le volume augmente, ça devient complexe.", "Nous construisons des outils."];
-    const good = ["Vous expédiez.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même."];
+    const good = ["Vous expédiez.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même. Dites-moi comment ça se passe chez vous."];
     expect(draftFaults(good, 0)).toBeLessThan(draftFaults(bad, 0));
     expect(draftFaults(good, 0)).toBe(0);
   });
@@ -137,5 +137,25 @@ describe("template fallback", () => {
     expect(draft.body).toContain("Je travaille seul");
     expect(teamVoiceIssues(draft.body.split("Matthew de Lamotte")[0])).toEqual([]);
     expect(diagnosisIssues(draft.body)).toEqual([]);
+  });
+});
+
+describe("message shape", () => {
+  // Observed on a real draft: the model broke a sentence across two paragraphs and it arrived split.
+  it("rejoins a sentence the model split across paragraphs", () => {
+    expect(mergeSplitSentences(["Je travaille seul, je conçois et code moi-même", "de petits outils internes."]))
+      .toEqual(["Je travaille seul, je conçois et code moi-même de petits outils internes."]);
+    expect(mergeSplitSentences(["Vous expédiez pour des marques.", "Comment faites-vous ?"]))
+      .toEqual(["Vous expédiez pour des marques.", "Comment faites-vous ?"]);
+  });
+  // Observed on a real draft: the closing invitation was dropped to fit the word limit.
+  it("catches an email that ends on what the sender does", () => {
+    expect(missingClosingAsk(["Je travaille seul, je construis ce qui manque."])).toBe(true);
+    expect(missingClosingAsk(["Dites-moi comment ça se passe chez vous."])).toBe(false);
+    expect(missingClosingAsk(["Si le sujet vous parle, on en parle quand vous voulez."])).toBe(false);
+  });
+  it("asks for the closing line back", () => {
+    const note = revisionNote(["Vous expédiez.", "Comment suivez-vous ça ?", "Je travaille seul et je construis ce qui manque."], 0);
+    expect(note).toContain("nothing for the reader to answer");
   });
 });

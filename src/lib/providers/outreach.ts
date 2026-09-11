@@ -70,7 +70,8 @@ export function outreachInstruction(language: "fr" | "en", step: number): string
       "",
       "Paragraph 1: one concrete, specific thing about THEIR business, from the supplied research or description - the actual activity, a tool they use, something their own site states. State it flatly, as something you read, with no judgement attached.",
       "Paragraph 2: the question. Ask how they handle one precise thing today, offering two plausible ways they might be doing it so the reader can answer in three words. It MUST end with a question mark. No claim about their situation, no proposed solution here.",
-      "Paragraph 3: one sentence saying you work alone, design and build the tools yourself, and that what you build is shaped around how they work. Then a single closing line that makes replying easy and leaves an obvious way out. Never ask for a call or a meeting slot.",
+      "Paragraph 3: one sentence saying you work alone, design and build the tools yourself, and that what you build is shaped around how they work. Then a mandatory closing line, warm and ordinary, that makes replying easy: tell them a line describing how they do it today is enough, and that you will say straight whether there is anything worth building. An email that ends on what you do, with nothing to answer, is a failed draft. Never ask for a call or a meeting slot.",
+      "Each paragraph must be a complete thought that ends on a full stop or a question mark. Never break a sentence across two paragraphs.",
     );
   }
   return lines.join("\n");
@@ -128,8 +129,20 @@ export function styleIssues(text: string): string[] { return match(TICS, text); 
 export function teamVoiceIssues(text: string): string[] { return match(TEAM_VOICE, text); }
 export function diagnosisIssues(text: string): string[] { return match(DIAGNOSIS, text); }
 
+/**
+ * An email that ends on what the sender does, with no invitation, gets no reply. The model drops
+ * the closing line first when it is squeezing itself under the word limit.
+ */
+const REPLY_CUE = /\?|\b(dites-moi|dites moi|r[ée]pondez|si vous me dites|si vous partagez|on en parle|faites-moi signe|un mot suffit|je vous dirai|tell me|let me know|drop me|reply)\b/i;
+
+export function missingClosingAsk(paragraphs: string[]): boolean {
+  const last = paragraphs[paragraphs.length - 1] || "";
+  return !REPLY_CUE.test(last);
+}
+
 /** The single revision note handed back to the model, or null when the draft is already fine. */
-export function revisionNote(paragraphs: string[], step: number): string | null {
+export function revisionNote(rawParagraphs: string[], step: number): string | null {
+  const paragraphs = mergeSplitSentences(rawParagraphs);
   const text = paragraphs.join(" ");
   const limit = MAX_WORDS[Math.min(step, 2)];
   const words = wordCount(text);
@@ -139,6 +152,7 @@ export function revisionNote(paragraphs: string[], step: number): string | null 
   const diagnosis = diagnosisIssues(text);
   if (diagnosis.length) notes.push(`It claims to know their difficulties: ${diagnosis.map(t => `"${t}"`).join(", ")}. You do not know that. Replace the claim with a question about how they actually handle it today.`);
   if (step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"))) notes.push("It never asks them anything before the closing line. The second paragraph must be a real question about how they work today, ending in a question mark.");
+  if (missingClosingAsk(paragraphs)) notes.push("It ends on what you do, with nothing for the reader to answer. The last sentence must invite a reply in a warm, ordinary way - tell them that a line describing how they work today is enough, and that you will say straight whether there is anything worth building.");
   const tics = styleIssues(text);
   if (tics.length) notes.push(`It uses wording that is banned because it reads as consulting boilerplate: ${tics.map(t => `"${t}"`).join(", ")}. Say the same thing the way someone would say it out loud.`);
   if (words > limit * 1.25) notes.push(`It runs to ${words} words, over the ${limit}-word limit. Cut the padding: drop every sentence that only restates another.`);
@@ -147,10 +161,11 @@ export function revisionNote(paragraphs: string[], step: number): string | null 
 }
 
 /** How far a draft is from the target, so a rewrite is only kept when it actually moves closer. */
-export function draftFaults(paragraphs: string[], step: number): number {
+export function draftFaults(rawParagraphs: string[], step: number): number {
+  const paragraphs = mergeSplitSentences(rawParagraphs);
   const text = paragraphs.join(" ");
   const missingQuestion = step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?")) ? 1 : 0;
-  return teamVoiceIssues(text).length * 2 + diagnosisIssues(text).length * 2 + styleIssues(text).length + missingQuestion * 2;
+  return teamVoiceIssues(text).length * 2 + diagnosisIssues(text).length * 2 + styleIssues(text).length + missingQuestion * 2 + (missingClosingAsk(paragraphs) ? 2 : 0);
 }
 
 /** Cosmetic tics a model slips in: strip them rather than discard an otherwise good message. */
@@ -179,8 +194,23 @@ export function signatureFor(settings: DraftSettings): string {
   return settings.signature?.trim() || `${settings.senderName}\n${settings.companyName}`;
 }
 
+/**
+ * The model sometimes returns a paragraph break in the middle of a sentence, which arrives in the
+ * inbox as a broken line. A paragraph that does not close on terminal punctuation belongs with the
+ * next one, so they are rejoined rather than sent apart.
+ */
+export function mergeSplitSentences(paragraphs: string[]): string[] {
+  const merged: string[] = [];
+  for (const raw of paragraphs.map(tidyOutreach).filter(Boolean)) {
+    const previous = merged[merged.length - 1];
+    if (previous && !/[.?!:»)]$/.test(previous)) merged[merged.length - 1] = `${previous} ${raw}`;
+    else merged.push(raw);
+  }
+  return merged;
+}
+
 export function assembleOutreach(context: LeadContext, settings: DraftSettings, language: "fr" | "en", paragraphs: string[]): string {
-  const body = paragraphs.map(tidyOutreach).filter(Boolean).join("\n\n");
+  const body = mergeSplitSentences(paragraphs).join("\n\n");
   return `${greeting(context, language)}\n\n${body}\n\n${signatureFor(settings)}\n\n${optOut(language)}`;
 }
 
