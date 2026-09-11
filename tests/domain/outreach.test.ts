@@ -47,12 +47,17 @@ describe("outreach assembly", () => {
 });
 
 describe("outreach instruction", () => {
-  it("asks for three paragraphs on first contact and forbids a follow-up framing", () => {
+  it("states the word limit before the style advice, so it does not get diluted", () => {
     const first = outreachInstruction("fr", 0);
     expect(first).toContain("exactly three paragraphs");
-    expect(first).toContain("French");
-    const second = outreachInstruction("fr", 1);
-    expect(second).toContain("Do NOT say you are following up");
-    expect(outreachInstruction("en", 2)).toContain("Final message");
+    expect(first).toContain("110 words maximum");
+    expect(first.indexOf("HARD LIMITS")).toBeLessThan(first.indexOf("Register:"));
+    expect(first).toContain("Write one cold email in French");
+  });
+  it("forbids a follow-up framing and shortens each later step", () => {
+    expect(outreachInstruction("fr", 1)).toContain("Never say you are following up");
+    expect(outreachInstruction("fr", 1)).toContain("70 words maximum");
+    expect(outreachInstruction("en", 2)).toContain("45 words maximum");
+    expect(outreachInstruction("en", 2)).toContain("last message");
   });
 });

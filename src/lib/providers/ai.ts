@@ -4,7 +4,7 @@ import { z } from "zod";
 import { classifyReplyRules } from "../domain/replies";
 import { languageFor, normalizeScore, detectRisks, sanitizeExternalText, UNKNOWN } from "../domain/rules";
 import { classificationSchema, draftSchema, offerSchema, outreachSchema, researchSchema, scoreSchema, validateOffer } from "../domain/schemas";
-import { assembleOutreach, fallbackOutreach, outreachInstruction, outreachIssues, tidyOutreach } from "./outreach";
+import { assembleOutreach, fallbackOutreach, MAX_WORDS, outreachInstruction, outreachIssues, tidyOutreach, wordCount } from "./outreach";
 import { consumeBudget, isBudgetError } from "./budget";
 import { tavilySearch } from "./sources";
 import type { AdaptiveOffer, AIService, DraftResult, DraftSettings, LeadContext, OfferTemplateInput, ReplyClassification, ResearchFact, ScoreResult } from "./types";
@@ -48,14 +48,21 @@ export class OpenAIService implements AIService {
   async draftOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step = 0): Promise<DraftResult> {
     const language = languageFor(context.company.country, context.contact?.language);
     const evidence = (context.research || []).filter(fact => fact.status !== "unknown").slice(0, 10);
-    const result = await this.structured(outreachSchema, "outreach_email", outreachInstruction(language, step), {
+    const payload = {
       company: { name: context.company.name, description: context.company.description, industry: context.company.industry, technologies: context.company.technologies },
       contact: context.contact ? { firstName: context.contact.firstName, jobTitle: context.contact.jobTitle } : null,
       research: evidence,
       hypotheses: context.detectedProblems || [],
       offer: { solution: offer.proposedSolution, deliverables: offer.deliverables },
       sender: { name: settings.senderName, company: settings.companyName },
-    });
+    };
+    let result = await this.structured(outreachSchema, "outreach_email", outreachInstruction(language, step), payload);
+    // Length is the constraint a model ignores first, and a long cold email reads as a sequence.
+    // One compression pass costs a request; the alternative is sending the padded version.
+    const limit = MAX_WORDS[Math.min(step, 2)];
+    if (wordCount(result.paragraphs.join(" ")) > limit * 1.4) {
+      result = await this.structured(outreachSchema, "outreach_email", `${outreachInstruction(language, step)}\n\nYour previous draft ran to ${wordCount(result.paragraphs.join(" "))} words, well over the ${limit}-word limit. Rewrite it under the limit: cut the padding, keep the concrete observation and the question, drop every sentence that only restates another.`, { ...payload, previousDraft: result.paragraphs });
+    }
     const body = assembleOutreach(context, settings, language, result.paragraphs);
     // The signature legitimately carries an address and a site: only the written paragraphs are checked.
     const issues = outreachIssues(result.paragraphs.join(" "));

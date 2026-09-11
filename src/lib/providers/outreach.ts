@@ -7,39 +7,61 @@ import { languageFor } from "../domain/rules";
  * machine-sent. The model now writes the whole message from verified research, inside guardrails,
  * while the greeting, signature and opt-out line stay deterministic so compliance never depends
  * on a probabilistic output.
+ *
+ * The hard constraints come first in the instruction and an example carries the register: a long
+ * list of prohibitions at the end of a prompt gets diluted, a short model email does not.
  */
 
+export const MAX_WORDS: Record<number, number> = { 0: 110, 1: 70, 2: 45 };
+
 const ANGLE: Record<number, string> = {
-  0: "First contact. Open on their business, not on yours.",
-  1: "Second message, three days later. Do NOT say you are following up or checking in. Take a different angle from a first email the reader may not have read: describe concretely what a small first step would look like for a business like theirs. The message must stand on its own.",
-  2: "Final message, one week later. Short and honest: say plainly that you stop there, leave the door open without pressure, give them an easy way to come back later. No new argument, no urgency, no guilt.",
+  0: "This is a first contact. Open on their business, never on yours.",
+  1: "This is the second message, three days later. Never say you are following up or checking in, and never summarise the first email: the reader may not have opened it. Take a new angle - what a small first step would concretely look like for a business like theirs.",
+  2: "This is the last message, a week later. Say plainly that you stop there, leave the door open without pressure, give an easy way to come back later. No new argument, no urgency, no guilt.",
 };
+
+const EXAMPLE_FR = `Vous préparez et expédiez les commandes de vos clients e-commerce, avec un WMS relié à leur boutique.
+
+Quand le volume monte, le suivi des anomalies finit souvent dans un tableur à côté. On peut le remplacer par un écran unique qui reprend les alertes du WMS et les met dans les mains de la personne qui les traite.
+
+C'est le genre de petit outil interne qu'on livre en quelques jours, cadré sur un seul besoin. Ça vous parle, ou c'est déjà réglé chez vous ?`;
+
+const EXAMPLE_EN = `You pick, pack and ship for ecommerce brands, with a WMS wired into their store.
+
+When volume climbs, exception tracking usually ends up in a spreadsheet on the side. That can become one screen that pulls the WMS alerts and puts them in front of whoever handles them.
+
+That is the kind of small internal tool we ship in days, scoped to one need. Does that land, or is it already solved on your side?`;
 
 export function outreachInstruction(language: "fr" | "en", step: number): string {
   const target = language === "fr" ? "French" : "English";
+  const words = MAX_WORDS[Math.min(step, 2)];
+  const shape = step === 0 ? "exactly three paragraphs" : step === 1 ? "two paragraphs" : "one paragraph";
   const lines = [
-    `This email is addressed to the prospect: write the subject and every paragraph in ${target} and in that language only.`,
-    "Write as Matthew, an independent consultant writing to a peer he respects, not a vendor running a campaign. The reader gets several automated emails a week and recognises them instantly. This one must not read like one.",
-    ANGLE[Math.min(step, 2)],
-    "subject: two to five words, plain and low-key, like an internal note from a colleague. Start with a lowercase letter unless the first word is a proper noun. No sales pitch, no urgency, no question mark, no exclamation, no emoji, no reader first name, no sender company name.",
-    `paragraphs: ${step === 0 ? "exactly three paragraphs" : step === 1 ? "two paragraphs" : "one or two paragraphs"}, two or three sentences each, ${step === 0 ? "130" : "80"} words maximum in total. Short sentences, everyday professional language.`,
+    `Write one cold email in ${target} and in that language only. ${ANGLE[Math.min(step, 2)]}`,
+    "",
+    "HARD LIMITS - a draft that breaks one of these is a failure:",
+    `- ${words} words maximum for the whole message. Greeting and signature are added separately and do not count.`,
+    `- ${shape}, two sentences each at most.`,
+    "- No price, no figure in euros or dollars, no delivery date, no guarantee, no commitment on scope.",
+    "- No invented client, reference, statistic or result. Nothing about the prospect that the supplied research does not support.",
+    "- No exclamation mark, no emoji, no bullet list, no link, no postscript.",
+    "",
+    "Register: a professional writing to a peer he respects, in spoken French, not a consulting deck and not a sales sequence. Short verbs, direct sentences. Say \"on\" where a consultant would say \"je pourrais envisager de\". Quote the prospect's own words for their business instead of paraphrasing them into jargon, correcting an obvious typo when you do.",
+    "Banned wording: \"ce type de\", \"cela suggere\", \"cette integration suggere\", \"je pourrais imaginer\", \"permettrait de\", \"dans le cadre de\", \"en s'appuyant sur\", \"au sein de\", \"problematique\", \"accompagner\", \"j'espere que ce message vous trouve\", \"je me permets\", \"n'hesitez pas\", \"leader\", \"cle en main\", \"solution innovante\", \"synergie\", \"I hope this email finds you well\", \"leverage\", \"best-in-class\".",
+    "No flattery about their company or their sector. No listing of features. \"vous\" must outweigh \"je\". Name the company at most twice.",
+    "",
+    `Example of the target length and register, on a different company - never reuse its content:\n${language === "fr" ? EXAMPLE_FR : EXAMPLE_EN}`,
+    "",
+    "subject: two to five words, plain and low-key, like an internal note from a colleague. Lowercase first letter unless it is a proper noun. No pitch, no urgency, no question mark, no reader first name, no sender company name.",
   ];
   if (step === 0) {
     lines.push(
-      "Paragraph 1: one concrete, specific thing about THEIR business, taken from the supplied research or company description - the actual activity, a tool they use, something their own site states. Never open with who you are, never with a politeness formula, never with the equivalent of \"I came across your website\".",
-      "Paragraph 2: the operational consequence that usually follows, phrased as a hypothesis about them, never as an observed fact. Then, concretely and in plain words, what you would build for that, drawn from the supplied offer solution and deliverables.",
-      "Paragraph 3: one sentence on what MDL Advisory does - small internal tools and automations, scoped to one precise need, delivered in days. Then one single low-friction ask that can be answered in one line and leaves an easy way out: offering to send a short outline, or asking which process currently costs them the most time. Never ask for a call or a 30-minute slot.",
+      "",
+      "Paragraph 1: one concrete, specific thing about THEIR business, from the supplied research or description - the actual activity, a tool they use, something their own site states.",
+      "Paragraph 2: the operational consequence that usually follows, as a hypothesis about them and never as an observed fact, then in plain words what you would build for it, drawn from the supplied offer.",
+      "Paragraph 3: one short clause on what MDL Advisory does - small internal tools and automations scoped to one need, delivered in days - so the reader sees this idea is one example among others, with no catalogue. Then one single question that can be answered in one line and leaves an easy way out. Never ask for a call or a meeting slot.",
     );
-  } else {
-    lines.push("Stay concrete and specific to this company. Never summarise your previous email.");
   }
-  lines.push(
-    "Forbidden without exception: any price, any figure in euros or dollars, any delivery date, any guarantee, any commitment on scope, any invented client, reference, statistic or result.",
-    "Forbidden wording: \"j'espere que ce message vous trouve\", \"je me permets\", \"n'hesitez pas\", \"leader\", \"cle en main\", \"solution innovante\", \"synergie\", \"revolutionnaire\", \"incontournable\", \"I hope this email finds you well\", \"leverage\", \"best-in-class\", \"cutting-edge\", \"game-changer\". No exclamation mark, no emoji, no bullet list, no link, no postscript.",
-    "Address their world more than yours: \"vous\" must outweigh \"je\". Name the company at most twice. Claim nothing about the prospect that the supplied research does not support.",
-    "Register: write the way a professional speaks, not the way a consulting deck writes. Short verbs, direct sentences. In French, avoid the consultant tics \"ce type de\", \"cela suggere\", \"je pourrais imaginer\", \"permettrait de\", \"dans le cadre de\", \"en s'appuyant sur\", \"au sein de\", \"problematique\", \"accompagner\". Say \"on\" where a consultant would say \"je pourrais envisager de\". Copy the prospect's own words for their business rather than paraphrasing them into jargon, and fix an obvious typo when you quote them.",
-    "Leave the door open: in one short clause, let the reader see that this one idea is an example of what you do - automating a process, building a small internal tool, cleaning up data - without listing offers and without a catalogue.",
-  );
   return lines.join("\n");
 }
 
@@ -50,8 +72,12 @@ export function outreachIssues(text: string): string[] {
   if (/\bgarant(i|ie|ies|is|it|issons)\b|\bguarantee/i.test(text)) issues.push("garantie");
   if (/https?:\/\/|\bwww\./i.test(text)) issues.push("lien");
   if (/\b(sous|d['’]ici|within)\s+\d+\s*(jours?|semaines?|days?|weeks?)\b/i.test(text)) issues.push("délai chiffré");
-  if (text.trim().split(/\s+/).length > 200) issues.push("trop long");
+  if (wordCount(text) > 260) issues.push("trop long");
   return issues;
+}
+
+export function wordCount(text: string): number {
+  return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
 /** Cosmetic tics a model slips in: strip them rather than discard an otherwise good message. */
