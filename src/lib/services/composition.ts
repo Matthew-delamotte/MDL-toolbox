@@ -88,7 +88,7 @@ export async function generateOutreach(leadId:string,campaignId?:string,step=0) 
   const offer = await generateOffer(leadId);
   const draft = await createAIService(settings.aiModel).draftOutreach(context,offer,settings,step);
   // Without this the template silently replacing a personalised draft leaves no trace at all.
-  if (draft.fallbackReason) await audit('OUTREACH_FALLBACK',`Gabarit utilisé : ${draft.fallbackReason}`.slice(0,400),leadId,{step},'WARN');
+  if (draft.fallbackReason) await audit('OUTREACH_FALLBACK',`Gabarit utilisé : ${draft.fallbackReason}`.slice(0,400),leadId,{step,rejectedDraft:draft.rejectedDraft},'WARN');
   const message = await db.message.upsert({where:{idempotencyKey:key},create:{leadId,campaignId:campaignId ?? lead.campaignId,direction:'OUTBOUND',type:step === 0 ? 'INITIAL' : 'FOLLOWUP',subject:draft.subject,body:draft.body,idempotencyKey:key,recipientEmail:lead.contact?.email,sequenceStep:step,dryRun:settings.dryRun},update:{}});
   await review({leadId,messageId:message.id,type:'OUTREACH',title:step ? `Relance ${step} prête` : 'Approche personnalisée prête',description:'Relisez les preuves, le destinataire et le message. L’envoi automatique n’a lieu que si toutes les règles de sécurité et de campagne sont respectées.'});
   await audit('OUTREACH_GENERATED',`Email rédigé : ${message.subject}`,leadId,{messageId:message.id,step});
