@@ -298,9 +298,11 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
   const language = languageFor(context.company.country, context.contact?.language);
   const fr = language === "fr";
   const company = context.company.name.replace(/\s*\[Demo\]/, "");
-  const sentence = firstSentence(context.company.description || "", 22);
-  // A marketing fragment lifted from a home page reads worse than saying nothing.
-  const activity = sentence.split(/\s+/).length >= 5 && !/[:;]$/.test(sentence) ? sentence : "";
+  // A scraped description is often unpunctuated prose. Clipping it yields a sentence that stops on
+  // a dangling preposition, which reads worse than saying nothing: take it whole or not at all.
+  const sentence = firstSentence(context.company.description || "", 200);
+  const length = sentence ? sentence.split(/\s+/).filter(Boolean).length : 0;
+  const activity = length >= 5 && length <= 22 && !/[:;,]$/.test(sentence) ? sentence : "";
   const intervention = firstSentence(offer.proposedSolution || "", 16);
   const scope = intervention ? `${intervention.charAt(0).toLowerCase()}${intervention.slice(1)}` : "";
   let paragraphs: string[];

@@ -292,6 +292,17 @@ describe("template fallback stays readable", () => {
     expect(draft.body).not.toContain("accroître la transparence");
     expect(draft.body).toContain("quelques jours");
   });
+  // Observed on a real fallback: an unpunctuated scraped description clipped to a dangling "par".
+  it("drops a run-on description rather than stopping it on a dangling word", () => {
+    const prose = { ...context, company: { ...context.company, name: "Endurancelogistique", description: "en tant que prestataire logisticien, la spécialisation dans l'accompagnement des e-commerçants dès 2007, fut à la fois une source de diversification par le volume traité et par la variété des métiers rencontrés au fil des années" } } as unknown as LeadContext;
+    const draft = fallbackOutreach(prose, longOffer, settings, 0);
+    expect(draft.body).not.toContain("diversification par");
+    expect(draft.body).toContain("J'ai regardé l'activité de Endurancelogistique.");
+  });
+  it("keeps a short, properly punctuated description", () => {
+    const clean = { ...context, company: { ...context.company, name: "H2K", description: "Prestataire logistique pour les marques e-commerce en Ile-de-France." } } as unknown as LeadContext;
+    expect(fallbackOutreach(clean, longOffer, settings, 0).body).toContain("prestataire logistique pour les marques");
+  });
   it("says nothing rather than quoting a marketing fragment that ends on a colon", () => {
     const fragment = { ...context, company: { ...context.company, description: "Nos services :" } } as unknown as LeadContext;
     const draft = fallbackOutreach(fragment, longOffer, settings, 0);
