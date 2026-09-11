@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, casualIssues, diagnosisIssues, draftFaults, fallbackOutreach, greeting, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
 const settings: DraftSettings = {
@@ -130,13 +130,35 @@ describe("no diagnosis", () => {
   });
 });
 
+const offer = {
+  offerTemplateId: "workflow-rescue",
+  title: "H2K — Workflow Rescue",
+  problem: "Suivi à confirmer.",
+  proposedSolution: "Un workflow automatisé avec reporting et alertes d’erreur",
+  deliverables: ["Cartographie du besoin", "Implémentation", "Documentation"],
+  estimatedPriceMin: 600,
+  estimatedPriceMax: 1200,
+  estimatedDuration: "2–5 days",
+  rationale: "Repli local.",
+} as unknown as Parameters<typeof fallbackOutreach>[1];
+
 describe("template fallback", () => {
-  it("asks rather than asserts, and speaks for one person", () => {
-    const draft = fallbackOutreach(context, settings, 0);
+  it("asks rather than asserts, and speaks in the first person", () => {
+    const draft = fallbackOutreach(context, offer, settings, 0);
     expect(draft.body).toContain("?");
-    expect(draft.body).toContain("sur mesure"); expect(soloClaims(draft.body)).toEqual([]); expect(casualIssues(draft.body)).toEqual([]);
+    expect(draft.body).toContain("sur mesure");
+    expect(soloClaims(draft.body)).toEqual([]);
+    expect(casualIssues(draft.body)).toEqual([]);
     expect(teamVoiceIssues(draft.body.split("Matthew de Lamotte")[0])).toEqual([]);
     expect(diagnosisIssues(draft.body)).toEqual([]);
+  });
+  it("anchors the closing on the offer chosen for this lead and still leaves it open", () => {
+    const draft = fallbackOutreach(context, offer, settings, 0);
+    expect(draft.body).toContain("workflow automatisé");
+    expect(draft.body).toContain("si votre besoin est ailleurs".slice(3));
+    // The commercial promise is days, never a number of days and never a price.
+    expect(draft.body).toContain("quelques jours");
+    expect(outreachIssues(draft.body.split("Matthew de Lamotte")[0])).toEqual([]);
   });
 });
 
@@ -178,5 +200,35 @@ describe("tone and positioning", () => {
     const note = revisionNote(["J'ai vu que vous expédiez.", "Comment faites-vous ?", "Je travaille seul. Dites-moi s'il y a un truc à fabriquer."], 0);
     expect(note).toContain("works by himself");
     expect(note).toContain("too familiar");
+  });
+});
+
+describe("closing", () => {
+  // The promise is fixed, the wording is not: an identical last sentence on every email is a tell.
+  it("varies the angle between companies and holds it steady for one", () => {
+    expect(closingAngle("h2k.fr")).toBe(closingAngle("h2k.fr"));
+    const angles = new Set(["h2k.fr", "ebsesperance.fr", "atelier-colis.fr", "corlet.fr", "madebyextreme.com", "harbourgoods.co.uk", "klarwerk.de"].map(closingAngle));
+    expect(angles.size).toBeGreaterThan(1);
+  });
+  it("carries the angle into the instruction", () => {
+    const instruction = outreachInstruction("fr", 0, "h2k.fr");
+    expect(instruction).toContain("Wording of that closing line:");
+    expect(instruction).toContain(closingAngle("h2k.fr"));
+  });
+  it("requires the intervention and the open door, never a price or a product name", () => {
+    const instruction = outreachInstruction("fr", 0, "h2k.fr");
+    expect(instruction).toContain("leave the door open to a scope built around something else");
+    expect(instruction).toContain("never a number of days, and never a price");
+    expect(instruction).toContain("Never use a product or offer name");
+  });
+  it("accepts every closing angle as a genuine invitation", () => {
+    const closings = [
+      "Sur ce suivi, j'interviens sur quelques jours pour automatiser la saisie. Est-ce le bon angle, ou la friction est ailleurs ?",
+      "Je peux vous décrire ce que couvrirait une intervention de ce genre, ou la cadrer autrement selon votre situation.",
+      "Si la friction est là, je construis l'écran qui rassemble les alertes ; si elle est ailleurs, je construis autour de ça.",
+      "Deux options : l'intervention que j'ai en tête, ou un périmètre défini avec vous autour de votre façon de faire. Laquelle est la plus proche de votre situation ?",
+      "Dites-moi où se situe vraiment la friction et je vous dirai ce que je ferais.",
+    ];
+    for (const closing of closings) expect(missingClosingAsk([closing])).toBe(false);
   });
 });

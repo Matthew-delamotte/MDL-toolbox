@@ -1,4 +1,4 @@
-import type { DraftSettings, LeadContext } from "./types";
+import type { AdaptiveOffer, DraftSettings, LeadContext } from "./types";
 import { languageFor } from "../domain/rules";
 
 /**
@@ -19,6 +19,26 @@ import { languageFor } from "../domain/rules";
 
 export const MAX_WORDS: Record<number, number> = { 0: 110, 1: 70, 2: 45 };
 
+/**
+ * The closing carries the commercial promise, so its substance is fixed: one concrete intervention
+ * drawn from the offer chosen for this lead, plus an open door for a scope built around something
+ * else. Its wording must not be, or every prospect reads the same last sentence. The angle is
+ * picked from the company domain: stable when a draft is regenerated, different between companies.
+ */
+const CLOSING_ANGLES = [
+  "Close by naming the intervention plainly and asking whether that is the right target, or whether their need sits somewhere else entirely.",
+  "Close by offering to outline what such an intervention would cover for them, and saying you can shape it differently if their situation calls for it.",
+  "Close on a conditional: if the friction sits where your question points, this is the shape of what you would build; if it sits elsewhere, you would build around that instead.",
+  "Close by putting two paths side by side - the intervention you have in mind, or a scope defined with them around their own way of working - and asking which of the two is closer to their situation.",
+  "Close by inviting them to describe where the friction actually is, and saying what you would do about it once you know.",
+];
+
+export function closingAngle(seed: string): string {
+  let hash = 0;
+  for (const character of seed) hash = (hash * 31 + character.charCodeAt(0)) % 100000;
+  return CLOSING_ANGLES[hash % CLOSING_ANGLES.length];
+}
+
 const ANGLE: Record<number, string> = {
   0: "This is a first contact. Open on their business, never on yours.",
   1: "This is the second message, three days later. Never say you are following up or checking in, and never summarise the first email: the reader may not have opened it. Ask about a different, narrower part of how they work.",
@@ -29,15 +49,15 @@ const EXAMPLE_FR = `J'ai vu que vous préparez et expédiez les commandes de vos
 
 Comment suivez-vous les anomalies aujourd'hui : directement dans le WMS, ou dans un fichier à côté ?
 
-Je conçois et développe des outils internes sur mesure, réellement adaptés à la façon dont une équipe travaille. Si vous avez des points de friction sur ce suivi, je peux construire avec vous l'outil qui les règle.`;
+Je conçois et développe des outils internes sur mesure, adaptés à la façon dont une équipe travaille. Sur un suivi comme celui-là, j'interviens en général sur quelques jours pour construire l'écran qui rassemble les alertes — mais si la friction est ailleurs, on part sur ce qui vous sert vraiment.`;
 
 const EXAMPLE_EN = `I saw that you pick, pack and ship for ecommerce brands, with a WMS wired into their store.
 
 How do you track exceptions today: inside the WMS, or in a file on the side?
 
-I design and build bespoke internal tools, genuinely shaped around the way a team works. If you have friction points on that tracking, I can build the tool that removes them with you.`;
+I design and build bespoke internal tools, shaped around the way a team works. On tracking like that I usually work over a few days to build the screen that gathers the alerts - but if the friction sits elsewhere, we scope around what actually helps you.`;
 
-export function outreachInstruction(language: "fr" | "en", step: number): string {
+export function outreachInstruction(language: "fr" | "en", step: number, seed = ""): string {
   const target = language === "fr" ? "French" : "English";
   const words = MAX_WORDS[Math.min(step, 2)];
   const shape = step === 0 ? "exactly three paragraphs" : step === 1 ? "two paragraphs" : "one paragraph";
@@ -71,7 +91,9 @@ export function outreachInstruction(language: "fr" | "en", step: number): string
       "",
       "Paragraph 1: show that you actually looked at them and understood what they do. Name one concrete, specific thing about THEIR business from the supplied research - the real activity, a tool they use, something their own site states - and frame it as an observation you made: \"J'ai vu que vous...\", \"Si je comprends bien, vous...\", \"Vous ..., d'apres votre site\". Vary the opening between drafts, never reuse the same formula every time. No judgement attached, no compliment.",
       "Paragraph 2: the question. Ask how they handle one precise thing today, offering two plausible ways they might be doing it so the reader can answer in three words. It MUST end with a question mark. No claim about their situation, no proposed solution here.",
-      "Paragraph 3: one sentence on what you do - you design and build bespoke internal tools, genuinely shaped around the way their team works, not a standard product. Then a mandatory closing line: if they have friction points on that subject, you can build the tool that removes them with them. Keep it professional and concrete. An email that ends on what you do, with nothing to answer, is a failed draft. Never ask for a call or a meeting slot.",
+      "Paragraph 3: one sentence on what you do - you design and build bespoke internal tools, shaped around the way their team works, not a standard product.",
+      "Then a mandatory closing line. Its substance is fixed: name in plain words the specific intervention that the supplied offer points to, and in the same breath leave the door open to a scope built around something else if their need sits elsewhere. You may say the work runs over a few days, never a number of days, and never a price. Never use a product or offer name: describe what the intervention does. An email that ends on what you do, with nothing to answer, is a failed draft. Never ask for a call or a meeting slot.",
+      `Wording of that closing line: ${closingAngle(seed)} Write it in your own words - do not reuse the example's phrasing.`,
       "Each paragraph must be a complete thought that ends on a full stop or a question mark. Never break a sentence across two paragraphs.",
     );
   }
@@ -151,7 +173,7 @@ export function soloClaims(text: string): string[] { return match(SOLO_CLAIM, te
  * An email that ends on what the sender does, with no invitation, gets no reply. The model drops
  * the closing line first when it is squeezing itself under the word limit.
  */
-const REPLY_CUE = /\?|\b(dites-moi|dites moi|r[ée]pondez|si vous (me dites|partagez|avez)|on en parle|je peux construire|je peux (le |la |l['’])?b[âa]tir|construire avec vous|je vous dirai|tell me|let me know|i can build|reply)\b/i;
+const REPLY_CUE = /\?|\bsi (vous|la friction|le besoin|votre besoin|c['’]est|[çc]a se joue)\b|\b(dites-moi|dites moi|r[ée]pondez|on en parle|on part sur|on regarde|je peux|j['’]interviens|je construis|je vous dirai|tell me|let me know|i can|we scope|reply)\b/i;
 
 export function missingClosingAsk(paragraphs: string[]): boolean {
   const last = paragraphs[paragraphs.length - 1] || "";
@@ -242,11 +264,13 @@ export function assembleOutreach(context: LeadContext, settings: DraftSettings, 
  * reads like one, so it stays as specific as the stored data allows, asks rather than asserts,
  * and promises nothing.
  */
-export function fallbackOutreach(context: LeadContext, settings: DraftSettings, step: number): { subject: string; body: string; language: "fr" | "en" } {
+export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step: number): { subject: string; body: string; language: "fr" | "en" } {
   const language = languageFor(context.company.country, context.contact?.language);
   const fr = language === "fr";
   const company = context.company.name.replace(/\s*\[Demo\]/, "");
   const activity = (context.company.description || "").split(/[.\n]/)[0].trim().slice(0, 120);
+  const intervention = tidyOutreach(offer.proposedSolution).replace(/[.?]+$/, "");
+  const scope = intervention ? `${intervention.charAt(0).toLowerCase()}${intervention.slice(1)}` : "";
   let paragraphs: string[];
   if (step >= 2) {
     paragraphs = [fr
@@ -270,8 +294,8 @@ export function fallbackOutreach(context: LeadContext, settings: DraftSettings, 
         ? "Comment suivez-vous cette activité aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
         : "How do you track that today: inside your business tools, or in a file someone maintains on the side?",
       fr
-        ? "Je conçois et développe des outils internes sur mesure, réellement adaptés à la façon dont une équipe travaille. Si vous avez des points de friction de ce côté-là, je peux construire avec vous l'outil qui les règle."
-        : "I design and build bespoke internal tools, genuinely shaped around the way a team works. If you have friction points on that side, I can build the tool that removes them with you.",
+        ? `Je conçois et développe des outils internes sur mesure, adaptés à la façon dont une équipe travaille.${scope ? ` Sur ce genre de sujet, j'interviens sur quelques jours : ${scope}.` : ""} Si votre besoin est ailleurs, on part plutôt sur ce qui vous sert vraiment.`
+        : `I design and build bespoke internal tools, shaped around the way a team works.${scope ? ` On subjects like this I work over a few days: ${scope}.` : ""} If your need sits elsewhere, we scope around what actually helps you.`,
     ];
   }
   const subject = step >= 2
