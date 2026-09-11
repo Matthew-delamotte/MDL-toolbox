@@ -262,3 +262,44 @@ describe("unsendable drafts fall back", () => {
     expect(isUnsendable(withTic, 0)).toBe(false);
   });
 });
+
+describe("template fallback stays readable", () => {
+  // Observed on a real fallback: the description was cut mid-word and the internal offer
+  // write-up was pasted whole, three sentences of jargon inside a cold email.
+  const longOffer = {
+    offerTemplateId: "internal-tool-sprint",
+    title: "Sprint",
+    problem: "À confirmer.",
+    proposedSolution: "Développer un outil interne ciblé, tel qu'un tableau de bord interactif ou un portail personnalisé, qui centralise la visualisation et le suivi des commandes clients, stocks en temps réel et expéditions. Cet outil permettra d'améliorer la prise de décision, de réduire les erreurs manuelles, et d'accroître la transparence pour les équipes.",
+    deliverables: ["Cadrage", "Implémentation"],
+    estimatedPriceMin: 1500,
+    estimatedPriceMax: 3000,
+    estimatedDuration: "5–10 days",
+    rationale: "Repli.",
+  } as unknown as Parameters<typeof fallbackOutreach>[1];
+  const wordy = {
+    ...context,
+    company: { ...context.company, name: "Ebsesperance", description: "e-commerçants, sous-traitez votre préparation de commande web : stockage, conditionnement, copacking, étiquetage, expédition, livraison et gestion des stocks en temps réel" },
+  } as unknown as LeadContext;
+
+  it("never cuts a word in half", () => {
+    const draft = fallbackOutreach(wordy, longOffer, settings, 0);
+    for (const word of draft.body.split(/\s+/)) expect(word).not.toBe("expédi");
+    expect(draft.body).not.toContain("expédi ");
+  });
+  it("keeps the intervention to one clause instead of the whole internal write-up", () => {
+    const draft = fallbackOutreach(wordy, longOffer, settings, 0);
+    expect(draft.body).not.toContain("accroître la transparence");
+    expect(draft.body).toContain("quelques jours");
+  });
+  it("says nothing rather than quoting a marketing fragment that ends on a colon", () => {
+    const fragment = { ...context, company: { ...context.company, description: "Nos services :" } } as unknown as LeadContext;
+    const draft = fallbackOutreach(fragment, longOffer, settings, 0);
+    expect(draft.body).not.toContain("Nos services");
+  });
+  it("stays inside the shape it enforces on the model", () => {
+    const draft = fallbackOutreach(wordy, longOffer, settings, 0);
+    const paragraphs = draft.body.split("\n\n").slice(1, 4);
+    expect(isUnsendable(paragraphs, 0)).toBe(false);
+  });
+});

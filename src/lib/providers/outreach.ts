@@ -282,12 +282,26 @@ export function assembleOutreach(context: LeadContext, settings: DraftSettings, 
  * reads like one, so it stays as specific as the stored data allows, asks rather than asserts,
  * and promises nothing.
  */
+/** Cutting on a character count leaves a word sliced in half in the middle of an email. */
+function clip(text: string, maxWords: number): string {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  return words.length <= maxWords ? words.join(" ") : words.slice(0, maxWords).join(" ");
+}
+
+/** The first sentence only: a scraped description or an internal offer write-up runs on for lines. */
+function firstSentence(text: string, maxWords: number): string {
+  const sentence = (text || "").split(/(?<=[.?!])\s|\n/)[0] || "";
+  return clip(tidyOutreach(sentence).replace(/[.?!:,;\s]+$/, ""), maxWords);
+}
+
 export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, settings: DraftSettings, step: number): { subject: string; body: string; language: "fr" | "en" } {
   const language = languageFor(context.company.country, context.contact?.language);
   const fr = language === "fr";
   const company = context.company.name.replace(/\s*\[Demo\]/, "");
-  const activity = (context.company.description || "").split(/[.\n]/)[0].trim().slice(0, 120);
-  const intervention = tidyOutreach(offer.proposedSolution).replace(/[.?]+$/, "");
+  const sentence = firstSentence(context.company.description || "", 22);
+  // A marketing fragment lifted from a home page reads worse than saying nothing.
+  const activity = sentence.split(/\s+/).length >= 5 && !/[:;]$/.test(sentence) ? sentence : "";
+  const intervention = firstSentence(offer.proposedSolution || "", 16);
   const scope = intervention ? `${intervention.charAt(0).toLowerCase()}${intervention.slice(1)}` : "";
   let paragraphs: string[];
   if (step >= 2) {
@@ -305,9 +319,9 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
     ];
   } else {
     paragraphs = [
-      fr
-        ? `J'ai vu ce que fait ${company}${activity ? ` : ${activity.charAt(0).toLowerCase()}${activity.slice(1)}` : ""}.`
-        : `I had a look at what ${company} does${activity ? `: ${activity.charAt(0).toLowerCase()}${activity.slice(1)}` : ""}.`,
+      activity
+        ? (fr ? `J'ai vu ce que fait ${company} : ${activity.charAt(0).toLowerCase()}${activity.slice(1)}.` : `I had a look at what ${company} does: ${activity.charAt(0).toLowerCase()}${activity.slice(1)}.`)
+        : (fr ? `J'ai regardé l'activité de ${company}.` : `I had a look at what ${company} does.`),
       fr
         ? "Comment suivez-vous cette activité aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
         : "How do you track that today: inside your business tools, or in a file someone maintains on the side?",
