@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { createLeadSourceAdapter, findContact, parseManualCsv, type RawOpportunity } from '@/lib/providers';
-import { leadDedupeKey, normalizeDomain, normalizeEmail } from '@/lib/domain';
+import { languageFor, leadDedupeKey, normalizeDomain, normalizeEmail } from '@/lib/domain';
 import { audit, json } from './shared';
 
 function namedContactIdentity(companyId: string, fullName: string) {
@@ -90,7 +90,10 @@ export async function findLeadContact(leadId:string) {
         ],
       },
     });
-    const result = existing ? await tx.contact.update({where:{id:existing.id},data:{...found,email}}) : await tx.contact.create({data:{...found,email,companyId:lead.companyId,source:found.source ?? 'HUNTER'}});
+    // Hunter returns no language: without this the contact keeps the "en" default and a French
+    // prospect receives an English opt-out line.
+    const language = languageFor(lead.company.country, found.language);
+    const result = existing ? await tx.contact.update({where:{id:existing.id},data:{...found,email,language}}) : await tx.contact.create({data:{...found,email,language,companyId:lead.companyId,source:found.source ?? 'HUNTER'}});
     await tx.lead.update({where:{id:leadId},data:{contactId:result.id}});
     return result;
   });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, isUnsendable, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, casualIssues, closingAngle, diagnosisIssues, draftFaults, fallbackOutreach, greeting, isUnsendable, mergeSplitSentences, missingClosingAsk, optOut, outreachInstruction, outreachIssues, revisionNote, signOff, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { languageFor } from "../../src/lib/domain";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
 const settings: DraftSettings = {
@@ -155,7 +156,7 @@ describe("template fallback", () => {
   it("anchors the closing on the offer chosen for this lead and still leaves it open", () => {
     const draft = fallbackOutreach(context, offer, settings, 0);
     expect(draft.body).toContain("workflow automatisé");
-    expect(draft.body).toContain("si votre besoin est ailleurs".slice(3));
+    expect(draft.body).toContain("identifier vos vrais points de friction");
     // The commercial promise is days, never a number of days and never a price.
     expect(draft.body).toContain("quelques jours");
     expect(outreachIssues(draft.body.split("Matthew de Lamotte")[0])).toEqual([]);
@@ -217,7 +218,7 @@ describe("closing", () => {
   });
   it("requires the intervention and the open door, never a price or a product name", () => {
     const instruction = outreachInstruction("fr", 0, "h2k.fr");
-    expect(instruction).toContain("leave the door open to a scope built around something else");
+    expect(instruction).toContain("propose an exchange to identify what they actually need");
     expect(instruction).toContain("never a number of days, and never a price");
     expect(instruction).toContain("Never use a product or offer name");
   });
@@ -314,5 +315,50 @@ describe("template fallback stays readable", () => {
     const draft = fallbackOutreach(wordy, longOffer, settings, 0);
     const paragraphs = draft.body.split("\n\n").slice(1, 4);
     expect(isUnsendable(paragraphs, 0)).toBe(false);
+  });
+});
+
+describe("courtesy sign-off", () => {
+  // Matthew added one by hand on all three messages he sent; leaving it to the model meant it
+  // appeared sometimes, misspelled, and ate into the word budget.
+  it("sits on its own line directly above the signature", () => {
+    const body = assembleOutreach(context, settings, "fr", ["Une observation.", "Une question ?", "Une clôture."]);
+    const lines = body.split("\n");
+    const signature = lines.indexOf("Matthew de Lamotte");
+    expect(signature).toBeGreaterThan(0);
+    expect(lines[signature - 1]).toBe(signOff("fr", "h2k.fr"));
+    expect(lines[signature - 2]).toBe("");
+  });
+  it("varies between companies and holds steady for one", () => {
+    expect(signOff("fr", "h2k.fr")).toBe(signOff("fr", "h2k.fr"));
+    const all = new Set(["h2k.fr", "ebsesperance.fr", "corlet.fr", "atelier-colis.fr", "klarwerk.de", "madebyextreme.com"].map(d => signOff("fr", d)));
+    expect(all.size).toBeGreaterThan(1);
+  });
+  it("is written in the language of the message", () => {
+    expect(signOff("fr", "h2k.fr")).toMatch(/plaisir|attente|lire/);
+    expect(signOff("en", "h2k.fr")).toMatch(/forward|happy/i);
+  });
+});
+
+describe("inclusive nous", () => {
+  // Matthew rewrote two closings as "nous pouvons discuter": that is him and the reader, not a team.
+  it("allows the we that means Matthew and the reader", () => {
+    expect(teamVoiceIssues("Nous pouvons en discuter pour identifier vos points de friction.")).toEqual([]);
+    expect(teamVoiceIssues("Nous pourrions échanger sur votre organisation.")).toEqual([]);
+  });
+  it("still catches the we that means a company", () => {
+    expect(teamVoiceIssues("Nous concevons des outils internes.")).not.toHaveLength(0);
+    expect(teamVoiceIssues("Nous accompagnons les PME.")).not.toHaveLength(0);
+    expect(teamVoiceIssues("Notre expertise est reconnue.")).not.toHaveLength(0);
+  });
+});
+
+describe("opt-out language", () => {
+  // Hunter returns no language, so the contact kept the "en" default and three French emails went
+  // out with an English opt-out line. The country decides, exactly as it does for the body.
+  it("follows the company country even when the contact record says en", () => {
+    expect(languageFor("France", "en")).toBe("fr");
+    expect(optOut(languageFor("France", "en"))).toContain("ne vous recontacterai plus");
+    expect(optOut(languageFor("United Kingdom", "en"))).toContain("won't contact you again");
   });
 });

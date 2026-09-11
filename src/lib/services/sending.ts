@@ -1,7 +1,8 @@
 import { db } from '@/lib/db';
 import { getSettings } from '@/lib/settings';
 import { createEmailProvider } from '@/lib/providers';
-import { campaignTargetingReason, evaluateAutopilot, suppressionReason } from '@/lib/domain';
+import { campaignTargetingReason, evaluateAutopilot, languageFor, suppressionReason } from '@/lib/domain';
+import { optOut } from '@/lib/providers/outreach';
 import { audit, errorText, pipeline, review } from './shared';
 
 const dispatchedStatuses = ['SENDING','SENT','DELIVERED','SIMULATED','BOUNCED','COMPLAINED','SUPPRESSED','SEND_UNCERTAIN'];
@@ -107,8 +108,10 @@ export async function sendMessage(messageId:string,approved=false) {
   }
   try {
     const message = claimed.message;
-    const language = message.lead.contact?.language ?? 'en';
-    const footer = language === 'fr' ? 'Pas pertinent ? Répondez simplement « non » et je ne vous recontacterai plus.' : "Not relevant? Just reply 'no' and I won't contact you again.";
+    // The body was written in the language of the company country; deriving the footer from the
+    // contact record alone sent a French email with an English opt-out line.
+    const language = languageFor(message.lead.company.country, message.lead.contact?.language);
+    const footer = optOut(language);
     const body = message.body.includes(footer) ? message.body : `${message.body}\n\n${footer}`;
     const result = await createEmailProvider(settings.dryRun).send({id:message.id,to:message.recipientEmail!,from:settings.fromEmail,replyTo:settings.replyTo || undefined,subject:message.subject,body});
     const sent = await db.message.update({where:{id:messageId},data:{status:result.dryRun ? 'SIMULATED' : 'SENT',providerMessageId:result.id,dryRun:result.dryRun,body}});

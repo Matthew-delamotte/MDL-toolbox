@@ -9,9 +9,9 @@ import { languageFor, UNKNOWN } from "../domain/rules";
  *
  * Three things decide whether it reads as human, and each is enforced in code rather than merely
  * asked for in the prompt, because a model drops them first:
- *  - Matthew writes in his own name. "nous", "notre" and "on conçoit" turn him into an agency and
- *    give the send away. What the email offers is a bespoke tool shaped around how the reader's
- *    team actually works, never a count of how many people he is.
+ *  - Matthew writes in his own name. "notre equipe" and "nous concevons" turn him into an agency
+ *    and give the send away; "nous pouvons en discuter" means him and the reader, and is fine.
+ *    What the email offers is a bespoke tool shaped around how the reader's team actually works.
  *  - The email must not diagnose. Asserting a problem nobody described reads as a template that
  *    guessed. The second paragraph asks how they actually work today, and must end in a question.
  *  - Length and consulting register: both are checked and sent back for one rewrite.
@@ -21,22 +21,49 @@ export const MAX_WORDS: Record<number, number> = { 0: 110, 1: 70, 2: 45 };
 
 /**
  * The closing carries the commercial promise, so its substance is fixed: one concrete intervention
- * drawn from the offer chosen for this lead, plus an open door for a scope built around something
- * else. Its wording must not be, or every prospect reads the same last sentence. The angle is
+ * drawn from the offer chosen for this lead, and a proposed exchange to pin down what they really
+ * need. Its wording must not be fixed, or every prospect reads the same last sentence. The angle is
  * picked from the company domain: stable when a draft is regenerated, different between companies.
  */
 const CLOSING_ANGLES = [
-  "Close by naming the intervention plainly and asking whether that is the right target, or whether their need sits somewhere else entirely.",
-  "Close by offering to outline what such an intervention would cover for them, and saying you can shape it differently if their situation calls for it.",
-  "Close on a conditional: if the friction sits where your question points, this is the shape of what you would build; if it sits elsewhere, you would build around that instead.",
-  "Close by putting two paths side by side - the intervention you have in mind, or a scope defined with them around their own way of working - and asking which of the two is closer to their situation.",
-  "Close by inviting them to describe where the friction actually is, and saying what you would do about it once you know.",
+  "Close by naming the intervention plainly, then proposing an exchange to pin down what they actually need.",
+  "Close by offering to look at it together: a conversation to identify where the friction really sits, and to build from there.",
+  "Close on a conditional: if the friction sits where your question points, this is the shape of what you would build; otherwise propose an exchange to find the right target.",
+  "Close by putting two paths side by side - the intervention you have in mind, or something defined together - and proposing an exchange to settle which one fits.",
+  "Close by proposing an exchange to identify their real friction points, and saying you would then build what fits their own way of working.",
 ];
 
-export function closingAngle(seed: string): string {
+function pick<T>(list: T[], seed: string): T {
   let hash = 0;
   for (const character of seed) hash = (hash * 31 + character.charCodeAt(0)) % 100000;
-  return CLOSING_ANGLES[hash % CLOSING_ANGLES.length];
+  return list[hash % list.length];
+}
+
+export function closingAngle(seed: string): string {
+  return pick(CLOSING_ANGLES, seed);
+}
+
+/**
+ * Matthew adds a courtesy line above his signature on every message he sends by hand. It is a
+ * French business convention, it costs nothing, and leaving it to the model means it appears
+ * sometimes, misspelled, and eats into the word budget. Varied by company so it is not a tell.
+ */
+const SIGN_OFF_FR = [
+  "Au plaisir d'échanger avec vous.",
+  "Dans l'attente de votre retour.",
+  "Au plaisir de vous lire.",
+  "Au plaisir d'en discuter avec vous.",
+];
+
+const SIGN_OFF_EN = [
+  "Looking forward to hearing from you.",
+  "I look forward to your reply.",
+  "Happy to talk it through whenever suits you.",
+  "Looking forward to your thoughts.",
+];
+
+export function signOff(language: "fr" | "en", seed: string): string {
+  return pick(language === "fr" ? SIGN_OFF_FR : SIGN_OFF_EN, seed);
 }
 
 const ANGLE: Record<number, string> = {
@@ -49,13 +76,13 @@ const EXAMPLE_FR = `J'ai vu que vous préparez et expédiez les commandes de vos
 
 Comment suivez-vous les anomalies aujourd'hui : directement dans le WMS, ou dans un fichier à côté ?
 
-Je conçois et développe des outils internes sur mesure, adaptés à la façon dont une équipe travaille. Sur un suivi comme celui-là, j'interviens en général sur quelques jours pour construire l'écran qui rassemble les alertes — mais si la friction est ailleurs, on part sur ce qui vous sert vraiment.`;
+Je conçois et développe des outils internes sur mesure, adaptés à la façon dont une équipe travaille. Sur un suivi comme celui-là, j'interviens en général sur quelques jours pour construire l'écran qui rassemble les alertes. Nous pouvons en échanger pour identifier vos vrais points de friction, et construire ce qui vous sert réellement.`;
 
 const EXAMPLE_EN = `I saw that you pick, pack and ship for ecommerce brands, with a WMS wired into their store.
 
 How do you track exceptions today: inside the WMS, or in a file on the side?
 
-I design and build bespoke internal tools, shaped around the way a team works. On tracking like that I usually work over a few days to build the screen that gathers the alerts - but if the friction sits elsewhere, we scope around what actually helps you.`;
+I design and build bespoke internal tools, shaped around the way a team works. On tracking like that I usually work over a few days to build the screen that gathers the alerts. We can talk it through to pin down where the friction really sits, and build what actually helps you.`;
 
 export function outreachInstruction(language: "fr" | "en", step: number, seed = ""): string {
   const target = language === "fr" ? "French" : "English";
@@ -65,8 +92,8 @@ export function outreachInstruction(language: "fr" | "en", step: number, seed = 
     `Write one cold email in ${target} and in that language only. ${ANGLE[Math.min(step, 2)]}`,
     "",
     "WHO IS WRITING - this is the whole positioning, get it wrong and the email is worthless:",
-    "Matthew writes in the first person singular. Never write \"nous\", \"notre\", \"nos\", \"notre equipe\", \"chez MDL Advisory on\", or any \"on\" that means the company. Write \"je\". The only \"on\" allowed is the one that means Matthew and the reader together, as in \"on en parle\" or \"on regarde ensemble\".",
-    "What he offers, said once and plainly: he designs and builds bespoke internal tools, genuinely shaped around the way the reader's team works, and he can build it with them. Never say that he works alone, that he is independent, a freelance, a one-man operation, or any variation on being by himself: that is not the argument and it is not to be mentioned.",
+    "Matthew writes in the first person singular about what he does: \"je conçois\", \"je développe\". Never write \"notre\", \"nos\", \"notre equipe\", \"chez MDL Advisory on\", or a corporate present tense like \"nous concevons\" or \"on réalise\": there is no team behind him and it reads as an agency mailshot. \"nous\" and \"on\" are allowed only when they mean Matthew and the reader together - \"nous pouvons en discuter\", \"on regarde ensemble\".",
+    "What he offers, said once and plainly: he designs and builds bespoke internal tools, genuinely shaped around the way the reader's team works, and he would define what to build with them. Never say that he works alone, that he is independent, a freelance, a one-man operation, or any variation on being by himself: that is not the argument and it is not to be mentioned.",
     "Tone: professional and measured. Warm but never chummy. This is a message between professionals who have not met, not a text to a friend.",
     "",
     "DO NOT DIAGNOSE. You do not know their problems and pretending to is what gives an automated email away. Never assert that something is hard, slow, costly or complicated for them. Never write a sentence of the form \"quand le volume augmente, X devient compliqué\". Ask instead: one real, narrow, curious question about how they handle a specific thing today, the kind a colleague would ask.",
@@ -92,7 +119,8 @@ export function outreachInstruction(language: "fr" | "en", step: number, seed = 
       "Paragraph 1: show that you actually looked at them and understood what they do. Name one concrete, specific thing about THEIR business from the supplied research - the real activity, a tool they use, something their own site states - and frame it as an observation you made: \"J'ai vu que vous...\", \"Si je comprends bien, vous...\", \"Vous ..., d'apres votre site\". Vary the opening between drafts, never reuse the same formula every time. No judgement attached, no compliment.",
       "Paragraph 2: the question. Ask how they handle one precise thing today, offering two plausible ways they might be doing it so the reader can answer in three words. It MUST end with a question mark. No claim about their situation, no proposed solution here.",
       "Paragraph 3: one sentence on what you do - you design and build bespoke internal tools, shaped around the way their team works, not a standard product.",
-      "Then a mandatory closing line. Its substance is fixed: name in plain words the specific intervention that the supplied offer points to, and in the same breath leave the door open to a scope built around something else if their need sits elsewhere. You may say the work runs over a few days, never a number of days, and never a price. Never use a product or offer name: describe what the intervention does. An email that ends on what you do, with nothing to answer, is a failed draft. Never ask for a call or a meeting slot.",
+      "Then a mandatory closing line. Its substance is fixed: name in plain words the specific intervention that the supplied offer points to, and propose an exchange to identify what they actually need, so that what gets built fits their way of working rather than a standard product. You may say the work runs over a few days, never a number of days, and never a price. Never use a product or offer name: describe what the intervention does. An email that ends on what you do, with nothing to answer, is a failed draft. Propose the conversation and let them set the terms: never ask for a fixed slot, a thirty-minute call or a diary link.",
+      "Do not write a closing courtesy line and do not sign: both are added after you.",
       `Wording of that closing line: ${closingAngle(seed)} Write it in your own words - do not reuse the example's phrasing.`,
       "Each paragraph must be a complete thought that ends on a full stop or a question mark. Never break a sentence across two paragraphs.",
     );
@@ -116,8 +144,14 @@ export function wordCount(text: string): number {
 }
 
 /** Matthew works alone: anything that speaks for a company turns the email into an agency mailshot. */
+/**
+ * "Nous pouvons en discuter" means Matthew and the reader; "nous concevons des outils" means a
+ * company that does not exist. Only the second turns the email into an agency mailshot, so the
+ * ban is on the corporate present tense and on the possessives, not on the pronoun itself.
+ */
 const TEAM_VOICE: RegExp[] = [
-  /\bnous\b|\bnotre\b|\bnos\b/i,
+  /\bnotre\b|\bnos\b/i,
+  /\bnous (con[çc]evons|construisons|d[ée]veloppons|r[ée]alisons|proposons|livrons|aidons|accompagnons|offrons|cr[ée]ons|intervenons)\b/i,
   /\bon (con[çc]oit|produit|r[ée]alise|cr[ée]e|livre|construit|d[ée]veloppe|fait|travaille|aide|propose)\b/i,
   /\bchez MDL Advisory,? on\b/i,
   /\bour team\b|\bwe (build|design|deliver|help|offer)\b/i,
@@ -274,7 +308,8 @@ export function mergeSplitSentences(paragraphs: string[]): string[] {
 
 export function assembleOutreach(context: LeadContext, settings: DraftSettings, language: "fr" | "en", paragraphs: string[]): string {
   const body = mergeSplitSentences(paragraphs).join("\n\n");
-  return `${greeting(context, language)}\n\n${body}\n\n${signatureFor(settings)}\n\n${optOut(language)}`;
+  const courtesy = signOff(language, context.company.domain || context.company.name || "");
+  return `${greeting(context, language)}\n\n${body}\n\n${courtesy}\n${signatureFor(settings)}\n\n${optOut(language)}`;
 }
 
 /**
@@ -333,8 +368,8 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
         ? "Comment suivez-vous cette activité aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
         : "How do you track that today: inside your business tools, or in a file someone maintains on the side?",
       fr
-        ? `Je conçois et développe des outils internes sur mesure, adaptés à la façon dont une équipe travaille.${scope ? ` Sur ce genre de sujet, j'interviens sur quelques jours : ${scope}.` : ""} Si votre besoin est ailleurs, on part plutôt sur ce qui vous sert vraiment.`
-        : `I design and build bespoke internal tools, shaped around the way a team works.${scope ? ` On subjects like this I work over a few days: ${scope}.` : ""} If your need sits elsewhere, we scope around what actually helps you.`,
+        ? `Je conçois et développe des outils internes sur mesure, adaptés à la façon dont une équipe travaille.${scope ? ` Sur ce genre de sujet, j'interviens sur quelques jours : ${scope}.` : ""} Nous pouvons en échanger pour identifier vos vrais points de friction, et construire ce qui vous sert réellement.`
+        : `I design and build bespoke internal tools, shaped around the way a team works.${scope ? ` On subjects like this I work over a few days: ${scope}.` : ""} We can talk it through to pin down where the friction really sits, and build what actually helps you.`,
     ];
   }
   const subject = step >= 2
