@@ -297,7 +297,9 @@ describe("template fallback stays readable", () => {
     const prose = { ...context, company: { ...context.company, name: "Endurancelogistique", description: "en tant que prestataire logisticien, la spécialisation dans l'accompagnement des e-commerçants dès 2007, fut à la fois une source de diversification par le volume traité et par la variété des métiers rencontrés au fil des années" } } as unknown as LeadContext;
     const draft = fallbackOutreach(prose, longOffer, settings, 0);
     expect(draft.body).not.toContain("diversification par");
-    expect(draft.body).toContain("J'ai regardé l'activité de Endurancelogistique.");
+    // French elides before a vowel: "de Endurancelogistique" reads as a machine.
+    expect(draft.body).toContain("J'ai regardé l'activité d'Endurancelogistique");
+    expect(draft.body).not.toContain("de Endurancelogistique");
   });
   it("keeps a short, properly punctuated description", () => {
     const clean = { ...context, company: { ...context.company, name: "H2K", description: "Prestataire logistique pour les marques e-commerce en Ile-de-France." } } as unknown as LeadContext;

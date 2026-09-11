@@ -1,5 +1,5 @@
 import type { AdaptiveOffer, DraftSettings, LeadContext } from "./types";
-import { languageFor } from "../domain/rules";
+import { languageFor, UNKNOWN } from "../domain/rules";
 
 /**
  * Cold outreach used to be a fixed template with one AI-written noun phrase dropped into it:
@@ -320,10 +320,15 @@ export function fallbackOutreach(context: LeadContext, offer: AdaptiveOffer, set
         : "If you have friction points on that side, I can build the tool that removes them with you.",
     ];
   } else {
+    // "de Endurancelogistique" reads as a machine; French elides before a vowel.
+    const of = /^[aeiouyàâäéèêëîïôöùûü]/i.test(company) ? `d'${company}` : `de ${company}`;
+    const sector = (context.company.industry || "").trim();
     paragraphs = [
       activity
         ? (fr ? `J'ai vu ce que fait ${company} : ${activity.charAt(0).toLowerCase()}${activity.slice(1)}.` : `I had a look at what ${company} does: ${activity.charAt(0).toLowerCase()}${activity.slice(1)}.`)
-        : (fr ? `J'ai regardé l'activité de ${company}.` : `I had a look at what ${company} does.`),
+        : (fr
+            ? `J'ai regardé l'activité ${of}${sector && sector !== UNKNOWN ? `, ${sector.charAt(0).toLowerCase()}${sector.slice(1)}` : ""}.`
+            : `I had a look at what ${company} does${sector && sector !== UNKNOWN ? `, in ${sector.charAt(0).toLowerCase()}${sector.slice(1)}` : ""}.`),
       fr
         ? "Comment suivez-vous cette activité aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
         : "How do you track that today: inside your business tools, or in a file someone maintains on the side?",
