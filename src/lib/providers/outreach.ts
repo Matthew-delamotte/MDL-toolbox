@@ -9,9 +9,9 @@ import { languageFor } from "../domain/rules";
  *
  * Three things decide whether it reads as human, and each is enforced in code rather than merely
  * asked for in the prompt, because a model drops them first:
- *  - Matthew works alone. "nous", "notre" and "on conçoit" turn him into an agency and give the
- *    send away. The one real advantage over an agency is that the reader talks to the person who
- *    builds the thing, so the email says that.
+ *  - Matthew writes in his own name. "nous", "notre" and "on conçoit" turn him into an agency and
+ *    give the send away. What the email offers is a bespoke tool shaped around how the reader's
+ *    team actually works, never a count of how many people he is.
  *  - The email must not diagnose. Asserting a problem nobody described reads as a template that
  *    guessed. The second paragraph asks how they actually work today, and must end in a question.
  *  - Length and consulting register: both are checked and sent back for one rewrite.
@@ -25,17 +25,17 @@ const ANGLE: Record<number, string> = {
   2: "This is the last message, a week later. Say plainly that you stop there, leave the door open without pressure, give an easy way to come back later. No new argument, no urgency, no guilt.",
 };
 
-const EXAMPLE_FR = `Vous préparez et expédiez les commandes de vos clients e-commerce, avec un WMS relié à leur boutique.
+const EXAMPLE_FR = `J'ai vu que vous préparez et expédiez les commandes de vos clients e-commerce, avec un WMS relié à leur boutique.
 
-Je me demandais comment vous suivez les anomalies aujourd'hui : directement dans le WMS, ou dans un fichier à côté ?
+Comment suivez-vous les anomalies aujourd'hui : directement dans le WMS, ou dans un fichier à côté ?
 
-Je travaille seul : je conçois et je code moi-même de petits outils internes. Ça veut dire qu'on regarde votre façon de faire et que je construis ce qui manque, pas un produit standard. Si vous me dites comment ça se passe chez vous, je vous dirai franchement s'il y a quelque chose à en tirer.`;
+Je conçois et développe des outils internes sur mesure, réellement adaptés à la façon dont une équipe travaille. Si vous avez des points de friction sur ce suivi, je peux construire avec vous l'outil qui les règle.`;
 
-const EXAMPLE_EN = `You pick, pack and ship for ecommerce brands, with a WMS wired into their store.
+const EXAMPLE_EN = `I saw that you pick, pack and ship for ecommerce brands, with a WMS wired into their store.
 
-I was wondering how you track exceptions today: inside the WMS, or in a file on the side?
+How do you track exceptions today: inside the WMS, or in a file on the side?
 
-I work on my own: I design and build the tools myself. That means we look at how you actually work and I build what is missing, not a standard product. Tell me how it runs on your side and I will tell you straight whether there is anything worth building.`;
+I design and build bespoke internal tools, genuinely shaped around the way a team works. If you have friction points on that tracking, I can build the tool that removes them with you.`;
 
 export function outreachInstruction(language: "fr" | "en", step: number): string {
   const target = language === "fr" ? "French" : "English";
@@ -45,8 +45,9 @@ export function outreachInstruction(language: "fr" | "en", step: number): string
     `Write one cold email in ${target} and in that language only. ${ANGLE[Math.min(step, 2)]}`,
     "",
     "WHO IS WRITING - this is the whole positioning, get it wrong and the email is worthless:",
-    "Matthew works alone. He is not an agency, not a team, not a studio. He talks to the client himself and he writes the code himself. Never write \"nous\", \"notre\", \"nos\", \"notre equipe\", \"chez MDL Advisory on\", or any \"on\" that means the company. Write \"je\". The only \"on\" allowed is the one that means Matthew and the reader together, as in \"on en parle\" or \"on regarde ensemble\".",
-    "Working alone is the argument, not an excuse: the reader deals with one person, the conversation is direct, and what gets built is shaped around their way of working instead of a standard product. Say that plainly once, without boasting.",
+    "Matthew writes in the first person singular. Never write \"nous\", \"notre\", \"nos\", \"notre equipe\", \"chez MDL Advisory on\", or any \"on\" that means the company. Write \"je\". The only \"on\" allowed is the one that means Matthew and the reader together, as in \"on en parle\" or \"on regarde ensemble\".",
+    "What he offers, said once and plainly: he designs and builds bespoke internal tools, genuinely shaped around the way the reader's team works, and he can build it with them. Never say that he works alone, that he is independent, a freelance, a one-man operation, or any variation on being by himself: that is not the argument and it is not to be mentioned.",
+    "Tone: professional and measured. Warm but never chummy. This is a message between professionals who have not met, not a text to a friend.",
     "",
     "DO NOT DIAGNOSE. You do not know their problems and pretending to is what gives an automated email away. Never assert that something is hard, slow, costly or complicated for them. Never write a sentence of the form \"quand le volume augmente, X devient compliqué\". Ask instead: one real, narrow, curious question about how they handle a specific thing today, the kind a colleague would ask.",
     "",
@@ -68,9 +69,9 @@ export function outreachInstruction(language: "fr" | "en", step: number): string
   if (step === 0) {
     lines.push(
       "",
-      "Paragraph 1: one concrete, specific thing about THEIR business, from the supplied research or description - the actual activity, a tool they use, something their own site states. State it flatly, as something you read, with no judgement attached.",
+      "Paragraph 1: show that you actually looked at them and understood what they do. Name one concrete, specific thing about THEIR business from the supplied research - the real activity, a tool they use, something their own site states - and frame it as an observation you made: \"J'ai vu que vous...\", \"Si je comprends bien, vous...\", \"Vous ..., d'apres votre site\". Vary the opening between drafts, never reuse the same formula every time. No judgement attached, no compliment.",
       "Paragraph 2: the question. Ask how they handle one precise thing today, offering two plausible ways they might be doing it so the reader can answer in three words. It MUST end with a question mark. No claim about their situation, no proposed solution here.",
-      "Paragraph 3: one sentence saying you work alone, design and build the tools yourself, and that what you build is shaped around how they work. Then a mandatory closing line, warm and ordinary, that makes replying easy: tell them a line describing how they do it today is enough, and that you will say straight whether there is anything worth building. An email that ends on what you do, with nothing to answer, is a failed draft. Never ask for a call or a meeting slot.",
+      "Paragraph 3: one sentence on what you do - you design and build bespoke internal tools, genuinely shaped around the way their team works, not a standard product. Then a mandatory closing line: if they have friction points on that subject, you can build the tool that removes them with them. Keep it professional and concrete. An email that ends on what you do, with nothing to answer, is a failed draft. Never ask for a call or a meeting slot.",
       "Each paragraph must be a complete thought that ends on a full stop or a question mark. Never break a sentence across two paragraphs.",
     );
   }
@@ -110,6 +111,21 @@ const DIAGNOSIS: RegExp[] = [
   /\bfinit (souvent )?par (vivre|se retrouver|atterrir)\b/i,
 ];
 
+/** Too familiar for a first message between professionals who have not met. */
+const CASUAL: RegExp[] = [
+  /\bun truc\b|\bdes trucs\b|\ble truc\b/i,
+  /\bun mot suffi|\bun petit mot\b|\bdeux lignes suffisent\b/i,
+  /\bcarr[ée]ment\b|\bhyper\b|\bsuper\b|\bsympa\b|\bg[ée]nial\b|\bchouette\b/i,
+  /\bdu coup\b|\ben gros\b|\bpas mal de\b|\bfaire un tour\b/i,
+];
+
+/** Working alone is not the argument and Matthew does not want it mentioned. */
+const SOLO_CLAIM: RegExp[] = [
+  /\bje travaille seul\b|\bje suis seul\b|\btout seul\b|\ben solo\b/i,
+  /\bje suis ind[ée]pendant\b|\bfreelance\b|\bconsultant ind[ée]pendant\b/i,
+  /\bi work (on my own|alone)\b|\bone-man\b|\bsolo\b/i,
+];
+
 const TICS: RegExp[] = [
   /\bce (type|genre) d[e'’]/i,
   /\bcela sugg[eè]re\b/i,
@@ -128,12 +144,14 @@ const match = (patterns: RegExp[], text: string) =>
 export function styleIssues(text: string): string[] { return match(TICS, text); }
 export function teamVoiceIssues(text: string): string[] { return match(TEAM_VOICE, text); }
 export function diagnosisIssues(text: string): string[] { return match(DIAGNOSIS, text); }
+export function casualIssues(text: string): string[] { return match(CASUAL, text); }
+export function soloClaims(text: string): string[] { return match(SOLO_CLAIM, text); }
 
 /**
  * An email that ends on what the sender does, with no invitation, gets no reply. The model drops
  * the closing line first when it is squeezing itself under the word limit.
  */
-const REPLY_CUE = /\?|\b(dites-moi|dites moi|r[ée]pondez|si vous me dites|si vous partagez|on en parle|faites-moi signe|un mot suffit|je vous dirai|tell me|let me know|drop me|reply)\b/i;
+const REPLY_CUE = /\?|\b(dites-moi|dites moi|r[ée]pondez|si vous (me dites|partagez|avez)|on en parle|je peux construire|je peux (le |la |l['’])?b[âa]tir|construire avec vous|je vous dirai|tell me|let me know|i can build|reply)\b/i;
 
 export function missingClosingAsk(paragraphs: string[]): boolean {
   const last = paragraphs[paragraphs.length - 1] || "";
@@ -148,7 +166,11 @@ export function revisionNote(rawParagraphs: string[], step: number): string | nu
   const words = wordCount(text);
   const notes: string[] = [];
   const team = teamVoiceIssues(text);
-  if (team.length) notes.push(`It speaks for a company: ${team.map(t => `"${t}"`).join(", ")}. Matthew works alone. Rewrite in the first person singular, and keep "on" only where it means Matthew and the reader together.`);
+  if (team.length) notes.push(`It speaks for a company: ${team.map(t => `"${t}"`).join(", ")}. Matthew writes in his own name. Rewrite in the first person singular, and keep "on" only where it means Matthew and the reader together.`);
+  const solo = soloClaims(text);
+  if (solo.length) notes.push(`It says that Matthew works by himself: ${solo.map(t => `"${t}"`).join(", ")}. Remove it. Say what he builds - bespoke internal tools shaped around how their team works - not how many people he is.`);
+  const casual = casualIssues(text);
+  if (casual.length) notes.push(`It is too familiar for a first message between professionals who have not met: ${casual.map(t => `"${t}"`).join(", ")}. Keep it measured.`);
   const diagnosis = diagnosisIssues(text);
   if (diagnosis.length) notes.push(`It claims to know their difficulties: ${diagnosis.map(t => `"${t}"`).join(", ")}. You do not know that. Replace the claim with a question about how they actually handle it today.`);
   if (step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?"))) notes.push("It never asks them anything before the closing line. The second paragraph must be a real question about how they work today, ending in a question mark.");
@@ -165,7 +187,8 @@ export function draftFaults(rawParagraphs: string[], step: number): number {
   const paragraphs = mergeSplitSentences(rawParagraphs);
   const text = paragraphs.join(" ");
   const missingQuestion = step === 0 && !paragraphs.slice(0, -1).some(paragraph => paragraph.includes("?")) ? 1 : 0;
-  return teamVoiceIssues(text).length * 2 + diagnosisIssues(text).length * 2 + styleIssues(text).length + missingQuestion * 2 + (missingClosingAsk(paragraphs) ? 2 : 0);
+  return teamVoiceIssues(text).length * 2 + diagnosisIssues(text).length * 2 + soloClaims(text).length * 2
+    + styleIssues(text).length + casualIssues(text).length + missingQuestion * 2 + (missingClosingAsk(paragraphs) ? 2 : 0);
 }
 
 /** Cosmetic tics a model slips in: strip them rather than discard an otherwise good message. */
@@ -235,19 +258,20 @@ export function fallbackOutreach(context: LeadContext, settings: DraftSettings, 
         ? "Une question plus précise : le suivi de votre activité tient dans vos outils métier, ou il y a un fichier à côté que quelqu'un met à jour à la main ?"
         : "A narrower question: does tracking live inside your business tools, or is there a file on the side that someone updates by hand?",
       fr
-        ? "Je pose la question parce que c'est souvent de là que part un outil utile. Répondez-moi en une ligne si vous voulez."
-        : "I ask because that is usually where a useful tool starts. A one-line answer is plenty.",
+        ? "Si vous avez des points de friction de ce côté-là, je peux construire avec vous l'outil qui les règle."
+        : "If you have friction points on that side, I can build the tool that removes them with you.",
     ];
   } else {
-    const opening = activity || (fr ? `J'ai regardé ce que fait ${company}` : `I had a look at what ${company} does`);
     paragraphs = [
-      `${opening}.`,
       fr
-        ? "Comment suivez-vous tout ça aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
-        : "How do you keep track of all that today: inside your business tools, or in a file someone maintains on the side?",
+        ? `J'ai vu ce que fait ${company}${activity ? ` : ${activity.charAt(0).toLowerCase()}${activity.slice(1)}` : ""}.`
+        : `I had a look at what ${company} does${activity ? `: ${activity.charAt(0).toLowerCase()}${activity.slice(1)}` : ""}.`,
       fr
-        ? "Je travaille seul : je conçois et je code moi-même de petits outils internes, cadrés sur votre façon de faire plutôt que sur un produit standard. Dites-moi comment ça se passe chez vous et je vous dirai franchement s'il y a quelque chose à en tirer."
-        : "I work on my own: I design and build small internal tools myself, shaped around how you work rather than around a standard product. Tell me how it runs on your side and I will tell you straight whether there is anything worth building.",
+        ? "Comment suivez-vous cette activité aujourd'hui : dans vos outils métier, ou dans un fichier tenu à la main à côté ?"
+        : "How do you track that today: inside your business tools, or in a file someone maintains on the side?",
+      fr
+        ? "Je conçois et développe des outils internes sur mesure, réellement adaptés à la façon dont une équipe travaille. Si vous avez des points de friction de ce côté-là, je peux construire avec vous l'outil qui les règle."
+        : "I design and build bespoke internal tools, genuinely shaped around the way a team works. If you have friction points on that side, I can build the tool that removes them with you.",
     ];
   }
   const subject = step >= 2

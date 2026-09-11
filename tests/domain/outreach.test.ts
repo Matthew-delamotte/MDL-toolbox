@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assembleOutreach, diagnosisIssues, draftFaults, fallbackOutreach, greeting, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
+import { assembleOutreach, casualIssues, diagnosisIssues, draftFaults, fallbackOutreach, greeting, mergeSplitSentences, missingClosingAsk, outreachInstruction, outreachIssues, revisionNote, soloClaims, styleIssues, teamVoiceIssues, tidyOutreach } from "../../src/lib/providers/outreach";
 import type { DraftSettings, LeadContext } from "../../src/lib/providers/types";
 
 const settings: DraftSettings = {
@@ -77,7 +77,7 @@ describe("register enforcement", () => {
   it("asks for a rewrite that quotes the offending wording back", () => {
     const note = revisionNote(["Ce type de flux produit des données dispersées."], 0);
     expect(note).toContain("Ce type de");
-    expect(revisionNote(["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même. Dites-moi comment ça se passe chez vous."], 0)).toBeNull();
+    expect(revisionNote(["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je conçois des outils internes sur mesure. Si vous avez des points de friction, je peux construire avec vous l'outil qui les règle."], 0)).toBeNull();
   });
   it("asks for a rewrite when the draft runs long", () => {
     const long = [Array.from({ length: 150 }, () => "mot").join(" "), "Et vous, comment faites-vous ?", "Fin."];
@@ -85,8 +85,8 @@ describe("register enforcement", () => {
   });
 });
 
-describe("solo voice", () => {
-  // Matthew works alone: writing for a team is both untrue and the giveaway of a mailshot.
+describe("first person voice", () => {
+  // Writing for a team is both untrue and the clearest giveaway of a mailshot.
   it("catches anything written on behalf of a company", () => {
     expect(teamVoiceIssues("Nous construisons des outils internes.")).not.toHaveLength(0);
     expect(teamVoiceIssues("Chez MDL Advisory, on conçoit des outils sur mesure.")).not.toHaveLength(0);
@@ -94,13 +94,13 @@ describe("solo voice", () => {
     expect(teamVoiceIssues("We build small internal tools.")).not.toHaveLength(0);
   });
   it("leaves the first person singular and the shared \"on\" alone", () => {
-    expect(teamVoiceIssues("Je conçois et je code moi-même de petits outils internes.")).toEqual([]);
+    expect(teamVoiceIssues("Je conçois et je développe des outils internes sur mesure.")).toEqual([]);
     expect(teamVoiceIssues("Si le sujet vous parle, on en parle quand vous voulez.")).toEqual([]);
     expect(teamVoiceIssues("On regarde ensemble votre façon de faire.")).toEqual([]);
   });
   it("quotes the company voice back for a rewrite", () => {
     const note = revisionNote(["Une observation.", "Et chez vous ?", "Nous construisons des outils internes."], 0);
-    expect(note).toContain("works alone");
+    expect(note).toContain("writes in his own name");
     expect(note).toContain("Nous");
   });
 });
@@ -117,14 +117,14 @@ describe("no diagnosis", () => {
     expect(diagnosisIssues("Comment suivez-vous les anomalies aujourd'hui : dans le WMS, ou dans un fichier à côté ?")).toEqual([]);
   });
   it("requires a question before the closing paragraph", () => {
-    const asserted = ["Vous expédiez pour des marques.", "Un tableau de bord regrouperait vos données.", "Je travaille seul."];
+    const asserted = ["Vous expédiez pour des marques.", "Un tableau de bord regrouperait vos données.", "Je conçois des outils internes sur mesure."];
     expect(revisionNote(asserted, 0)).toContain("must be a real question");
-    const asked = ["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même. Dites-moi comment ça se passe chez vous."];
+    const asked = ["Vous expédiez pour des marques.", "Comment suivez-vous ça aujourd'hui ?", "Je conçois des outils internes sur mesure. Si vous avez des points de friction, je peux construire avec vous l'outil qui les règle."];
     expect(revisionNote(asked, 0)).toBeNull();
   });
   it("scores a draft so a rewrite is kept only when it moves closer", () => {
     const bad = ["Vous expédiez.", "Quand le volume augmente, ça devient complexe.", "Nous construisons des outils."];
-    const good = ["Vous expédiez.", "Comment suivez-vous ça aujourd'hui ?", "Je travaille seul, je code moi-même. Dites-moi comment ça se passe chez vous."];
+    const good = ["Vous expédiez.", "Comment suivez-vous ça aujourd'hui ?", "Je conçois des outils internes sur mesure. Si vous avez des points de friction, je peux construire avec vous l'outil qui les règle."];
     expect(draftFaults(good, 0)).toBeLessThan(draftFaults(bad, 0));
     expect(draftFaults(good, 0)).toBe(0);
   });
@@ -134,7 +134,7 @@ describe("template fallback", () => {
   it("asks rather than asserts, and speaks for one person", () => {
     const draft = fallbackOutreach(context, settings, 0);
     expect(draft.body).toContain("?");
-    expect(draft.body).toContain("Je travaille seul");
+    expect(draft.body).toContain("sur mesure"); expect(soloClaims(draft.body)).toEqual([]); expect(casualIssues(draft.body)).toEqual([]);
     expect(teamVoiceIssues(draft.body.split("Matthew de Lamotte")[0])).toEqual([]);
     expect(diagnosisIssues(draft.body)).toEqual([]);
   });
@@ -143,19 +143,40 @@ describe("template fallback", () => {
 describe("message shape", () => {
   // Observed on a real draft: the model broke a sentence across two paragraphs and it arrived split.
   it("rejoins a sentence the model split across paragraphs", () => {
-    expect(mergeSplitSentences(["Je travaille seul, je conçois et code moi-même", "de petits outils internes."]))
-      .toEqual(["Je travaille seul, je conçois et code moi-même de petits outils internes."]);
+    expect(mergeSplitSentences(["Je conçois et je développe moi-même", "des outils internes sur mesure."]))
+      .toEqual(["Je conçois et je développe moi-même des outils internes sur mesure."]);
     expect(mergeSplitSentences(["Vous expédiez pour des marques.", "Comment faites-vous ?"]))
       .toEqual(["Vous expédiez pour des marques.", "Comment faites-vous ?"]);
   });
   // Observed on a real draft: the closing invitation was dropped to fit the word limit.
   it("catches an email that ends on what the sender does", () => {
-    expect(missingClosingAsk(["Je travaille seul, je construis ce qui manque."])).toBe(true);
+    expect(missingClosingAsk(["Je conçois des outils internes sur mesure."])).toBe(true);
     expect(missingClosingAsk(["Dites-moi comment ça se passe chez vous."])).toBe(false);
     expect(missingClosingAsk(["Si le sujet vous parle, on en parle quand vous voulez."])).toBe(false);
   });
   it("asks for the closing line back", () => {
-    const note = revisionNote(["Vous expédiez.", "Comment suivez-vous ça ?", "Je travaille seul et je construis ce qui manque."], 0);
+    const note = revisionNote(["Vous expédiez.", "Comment suivez-vous ça ?", "Je conçois des outils internes sur mesure."], 0);
     expect(note).toContain("nothing for the reader to answer");
+  });
+});
+
+describe("tone and positioning", () => {
+  // Matthew asked for the solo framing to be dropped: what he sells is the bespoke tool, not his size.
+  it("catches any mention of working by himself", () => {
+    expect(soloClaims("Je travaille seul, je code moi-même.")).not.toHaveLength(0);
+    expect(soloClaims("Je suis indépendant.")).not.toHaveLength(0);
+    expect(soloClaims("I work on my own.")).not.toHaveLength(0);
+    expect(soloClaims("Je conçois et développe des outils internes sur mesure.")).toEqual([]);
+  });
+  it("catches wording too familiar for a first message", () => {
+    expect(casualIssues("Je vous dirai s'il y a un truc à fabriquer.")).not.toHaveLength(0);
+    expect(casualIssues("Un mot suffit.")).not.toHaveLength(0);
+    expect(casualIssues("Du coup, dites-moi.")).not.toHaveLength(0);
+    expect(casualIssues("Dites-moi comment vous procédez aujourd'hui.")).toEqual([]);
+  });
+  it("asks for both back in one rewrite note", () => {
+    const note = revisionNote(["J'ai vu que vous expédiez.", "Comment faites-vous ?", "Je travaille seul. Dites-moi s'il y a un truc à fabriquer."], 0);
+    expect(note).toContain("works by himself");
+    expect(note).toContain("too familiar");
   });
 });
